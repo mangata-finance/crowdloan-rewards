@@ -74,26 +74,24 @@ pub mod weights;
 pub mod pallet {
 
 	use crate::weights::WeightInfo;
-	use frame_support::traits::WithdrawReasons;
 	use frame_support::{
 		pallet_prelude::*,
-		traits::{Currency, ExistenceRequirement::AllowDeath},
-		PalletId,
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_core::crypto::AccountId32;
 	use sp_runtime::traits::{
-		AccountIdConversion, AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Verify,
+		AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Verify, Zero
 	};
-	use sp_runtime::{MultiSignature, Perbill};
+	use sp_runtime::{MultiSignature, Perbill, DispatchErrorWithPostInfo};
 	use sp_std::collections::btree_map::BTreeMap;
 	use sp_std::vec;
 	use sp_std::vec::Vec;
+	use mangata_primitives::{Balance, TokenId};
+	use orml_tokens::{MultiTokenCurrency, MultiTokenCurrencyExtended};
+
 	#[pallet::pallet]
 	// The crowdloan rewards pallet
 	pub struct Pallet<T>(PhantomData<T>);
-
-	pub const PALLET_ID: PalletId = PalletId(*b"Crowdloa");
 
 	// The wrapper around which the reward changing message needs to be wrapped
 	pub const WRAPPED_BYTES_PREFIX: &[u8] = b"<Bytes>";
@@ -113,13 +111,16 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxInitContributors: Get<u32>;
 		/// The minimum contribution to which rewards will be paid.
-		type MinimumReward: Get<BalanceOf<Self>>;
+		type MinimumReward: Get<Balance>;
 		/// A fraction representing the percentage of proofs
 		/// that need to be presented to change a reward address through the relay keys
 		#[pallet::constant]
 		type RewardAddressRelayVoteThreshold: Get<Perbill>;
+		/// MGA token Id
+		#[pallet::constant]
+		type NativeTokenId: Get<TokenId>;
 		/// The currency in which the rewards will be paid (probably the parachain native currency)
-		type RewardCurrency: Currency<Self::AccountId>;
+		type Tokens: MultiTokenCurrency<Self::AccountId> + MultiTokenCurrencyExtended<Self::AccountId>;
 		/// The AccountId type contributors used on the relay chain.
 		type RelayChainAccountId: Parameter
 			//TODO these AccountId32 bounds feel a little extraneous. I wonder if we can remove them.
@@ -139,7 +140,7 @@ pub mod pallet {
 		type RewardAddressAssociateOrigin: EnsureOrigin<Self::Origin>;
 
 		/// The type that will be used to track vesting progress
-		type VestingBlockNumber: AtLeast32BitUnsigned + Parameter + Default + Into<BalanceOf<Self>>;
+		type VestingBlockNumber: AtLeast32BitUnsigned + Parameter + Default + Into<Balance>;
 
 		/// The notion of time that will be used for vesting. Probably
 		/// either the relay chain or sovereign chain block number.
@@ -148,18 +149,14 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 	}
 
-	pub type BalanceOf<T> = <<T as Config>::RewardCurrency as Currency<
-		<T as frame_system::Config>::AccountId,
-	>>::Balance;
-
 	/// Stores info about the rewards owed as well as how much has been vested so far.
 	/// For a primer on this kind of design, see the recipe on compounding interest
 	/// https://substrate.dev/recipes/fixed-point.html#continuously-compounding
 	#[derive(Default, Clone, Encode, Decode, RuntimeDebug, PartialEq, scale_info::TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct RewardInfo<T: Config> {
-		pub total_reward: BalanceOf<T>,
-		pub claimed_reward: BalanceOf<T>,
+		pub total_reward: Balance,
+		pub claimed_reward: Balance,
 		pub contributed_relay_addresses: Vec<T::RelayChainAccountId>,
 	}
 
@@ -232,17 +229,22 @@ pub mod pallet {
 			// Make the first payment
 			let first_payment = T::InitializationPayment::get() * reward_info.total_reward;
 
-			T::RewardCurrency::transfer(
-				&PALLET_ID.into_account(),
+			let mint_result = T::Tokens::mint(
+				T::NativeTokenId::get().into(),
 				&reward_account,
-				first_payment,
-				AllowDeath,
-			)?;
-
-			Self::deposit_event(Event::InitialPaymentMade(
-				reward_account.clone(),
-				first_payment,
-			));
+				first_payment.into()
+			);
+			if mint_result.is_err(){
+				Self::deposit_event(Event::InitialPaymentMade(
+					reward_account.clone(),
+					Balance::zero(),
+				));
+			} else {
+				Self::deposit_event(Event::InitialPaymentMade(
+					reward_account.clone(),
+					first_payment,
+				));
+			}
 
 			reward_info.claimed_reward = first_payment;
 
@@ -338,7 +340,7 @@ pub mod pallet {
 			let first_paid = T::InitializationPayment::get() * info.total_reward;
 
 			// To calculate how much could the user have claimed already
-			let payable_period = now.saturating_sub(<InitVestingBlock<T>>::get());
+			let payable_period = now.clone().saturating_sub(<InitVestingBlock<T>>::get());
 
 			// How much should the contributor have already claimed by this block?
 			// By multiplying first we allow the conversion to integer done with the biggest number
@@ -359,18 +361,25 @@ pub mod pallet {
 			};
 
 			info.claimed_reward = info.claimed_reward.saturating_add(payable_amount);
-			AccountsPayable::<T>::insert(&payee, &info);
 
-			// This pallet controls an amount of funds and transfers them to each of the contributors
-			//TODO: contributors should have the balance locked for tranfers but not for democracy
-			T::RewardCurrency::transfer(
-				&PALLET_ID.into_account(),
+			let mint_result = T::Tokens::mint(
+				T::NativeTokenId::get().into(),
 				&payee,
-				payable_amount,
-				AllowDeath,
-			)?;
-			// Emit event
-			Self::deposit_event(Event::RewardsPaid(payee, payable_amount));
+				payable_amount.into()
+			);
+			if mint_result.is_err(){
+				if now < EndVestingBlock::<T>::get() {
+					return Err(DispatchErrorWithPostInfo::from(Error::<T>::ClaimingLessThanED));
+				}
+				// Emit event
+				Self::deposit_event(Event::RewardsPaid(payee.clone(), Balance::zero()));
+				AccountsPayable::<T>::insert(&payee, &info);
+			} else {
+				// Emit event
+				Self::deposit_event(Event::RewardsPaid(payee.clone(), payable_amount));
+				AccountsPayable::<T>::insert(&payee, &info);
+			}
+			
 			Ok(Default::default())
 		}
 
@@ -429,25 +438,15 @@ pub mod pallet {
 				Error::<T>::VestingPeriodNonValid
 			);
 
-			let current_initialized_rewards = InitializedRewardAmount::<T>::get();
+			let total_initialized_rewards = InitializedRewardAmount::<T>::get();
 
-			let reward_difference = Self::pot().saturating_sub(current_initialized_rewards);
+			let reward_difference = Self::get_crowdloan_allocation().saturating_sub(total_initialized_rewards);
 
 			// Ensure the difference is not bigger than the total number of contributors
 			ensure!(
 				reward_difference < TotalContributors::<T>::get().into(),
 				Error::<T>::RewardsDoNotMatchFund
 			);
-
-			// Burn the difference
-			let imbalance = T::RewardCurrency::withdraw(
-				&PALLET_ID.into_account(),
-				reward_difference,
-				WithdrawReasons::TRANSFER,
-				AllowDeath,
-			)
-			.expect("Shouldnt fail, as the fund should be enough to burn and nothing is locked");
-			drop(imbalance);
 
 			EndVestingBlock::<T>::put(lease_ending_block);
 
@@ -463,7 +462,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::initialize_reward_vec(rewards.len() as u32))]
 		pub fn initialize_reward_vec(
 			origin: OriginFor<T>,
-			rewards: Vec<(T::RelayChainAccountId, Option<T::AccountId>, BalanceOf<T>)>,
+			rewards: Vec<(T::RelayChainAccountId, Option<T::AccountId>, Balance)>,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			let initialized = <Initialized<T>>::get();
@@ -479,20 +478,20 @@ pub mod pallet {
 			);
 
 			// What is the amount initialized so far?
-			let mut current_initialized_rewards = InitializedRewardAmount::<T>::get();
+			let mut total_initialized_rewards = InitializedRewardAmount::<T>::get();
 
 			// Total number of contributors
 			let mut total_contributors = TotalContributors::<T>::get();
 
-			let incoming_rewards: BalanceOf<T> = rewards
+			let incoming_rewards: Balance = rewards
 				.iter()
-				.fold(0u32.into(), |acc: BalanceOf<T>, (_, _, reward)| {
+				.fold(0u32.into(), |acc: Balance, (_, _, reward)| {
 					acc + *reward
 				});
 
 			// Ensure we dont go over funds
 			ensure!(
-				current_initialized_rewards + incoming_rewards <= Self::pot(),
+				total_initialized_rewards + incoming_rewards <= Self::get_crowdloan_allocation(),
 				Error::<T>::BatchBeyondFundPot
 			);
 
@@ -524,16 +523,25 @@ pub mod pallet {
 				// If we have a native_account, we make the payment
 				let initial_payment = if let Some(native_account) = native_account {
 					let first_payment = T::InitializationPayment::get() * (*reward);
-					T::RewardCurrency::transfer(
-						&PALLET_ID.into_account(),
+					// Don't fail as this is supposed to be called with batch calls and we
+					// dont want to stall the rest of the contributions
+					// This can fail due to existential deposit check during minting
+					let mint_result = T::Tokens::mint(
+						T::NativeTokenId::get().into(),
 						&native_account,
-						first_payment,
-						AllowDeath,
-					)?;
-					Self::deposit_event(Event::InitialPaymentMade(
-						native_account.clone(),
-						first_payment,
-					));
+						first_payment.into()
+					);
+					if mint_result.is_err(){
+						Self::deposit_event(Event::InitialPaymentMade(
+							native_account.clone(),
+							Balance::zero(),
+						));
+					} else {
+						Self::deposit_event(Event::InitialPaymentMade(
+							native_account.clone(),
+							first_payment,
+						));
+					}
 					first_payment
 				} else {
 					0u32.into()
@@ -546,7 +554,7 @@ pub mod pallet {
 					contributed_relay_addresses: vec![relay_account.clone()],
 				};
 
-				current_initialized_rewards += *reward - initial_payment;
+				total_initialized_rewards += *reward;
 				total_contributors += 1;
 
 				if let Some(native_account) = native_account {
@@ -577,7 +585,7 @@ pub mod pallet {
 					UnassociatedContributions::<T>::insert(relay_account, reward_info);
 				}
 			}
-			InitializedRewardAmount::<T>::put(current_initialized_rewards);
+			InitializedRewardAmount::<T>::put(total_initialized_rewards);
 			TotalContributors::<T>::put(total_contributors);
 
 			Ok(Default::default())
@@ -585,14 +593,6 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// The account ID that holds the Crowdloan's funds
-		pub fn account_id() -> T::AccountId {
-			PALLET_ID.into_account()
-		}
-		/// The Account Id's balance
-		pub fn pot() -> BalanceOf<T> {
-			T::RewardCurrency::free_balance(&Self::account_id())
-		}
 		/// Verify a set of signatures made with relay chain accounts
 		/// We are verifying all the signatures, and then counting
 		/// We could do something more efficient like count as we verify
@@ -680,30 +680,39 @@ pub mod pallet {
 		NonContributedAddressProvided,
 		/// User submitted an unsifficient number of proofs to change the reward address
 		InsufficientNumberOfValidProofs,
+		/// The mint operation during claim has resulted in err.
+		/// This is expected when claiming less than existential desposit on a non-existent account
+		/// Please consider waiting until the EndVestingBlock to attempt this
+		ClaimingLessThanED,
 	}
 
 	#[pallet::genesis_config]
-	pub struct GenesisConfig<T: Config> {
+	pub struct GenesisConfig {
 		/// The amount of funds this pallet controls
-		pub funded_amount: BalanceOf<T>,
+		pub crowdloan_allocation: Balance,
 	}
 
 	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
+	impl Default for GenesisConfig {
 		fn default() -> Self {
 			Self {
-				funded_amount: 1u32.into(),
+				crowdloan_allocation: Default::default(),
 			}
 		}
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> GenesisBuild<T> for GenesisConfig {
 		// This sets the funds of the crowdloan pallet
 		fn build(&self) {
-			T::RewardCurrency::deposit_creating(&Pallet::<T>::account_id(), self.funded_amount);
+			CrowdloanAllocation::<T>::put(self.crowdloan_allocation);
 		}
 	}
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_crowdloan_allocation)]
+	pub type CrowdloanAllocation<T: Config> =
+		StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn accounts_payable)]
@@ -737,7 +746,7 @@ pub mod pallet {
 	#[pallet::getter(fn init_reward_amount)]
 	/// Total initialized amount so far. We store this to make pallet funds == contributors reward
 	/// check easier and more efficient
-	type InitializedRewardAmount<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+	type InitializedRewardAmount<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn total_contributors)]
@@ -748,26 +757,26 @@ pub mod pallet {
 	#[pallet::generate_deposit(fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// The initial payment of InitializationPayment % was paid
-		InitialPaymentMade(T::AccountId, BalanceOf<T>),
+		InitialPaymentMade(T::AccountId, Balance),
 		/// Someone has proven they made a contribution and associated a native identity with it.
 		/// Data is the relay account,  native account and the total amount of _rewards_ that will be paid
-		NativeIdentityAssociated(T::RelayChainAccountId, T::AccountId, BalanceOf<T>),
+		NativeIdentityAssociated(T::RelayChainAccountId, T::AccountId, Balance),
 		/// A contributor has claimed some rewards.
 		/// Data is the account getting paid and the amount of rewards paid.
-		RewardsPaid(T::AccountId, BalanceOf<T>),
+		RewardsPaid(T::AccountId, Balance),
 		/// A contributor has updated the reward address.
 		RewardAddressUpdated(T::AccountId, T::AccountId),
 		/// When initializing the reward vec an already initialized account was found
 		InitializedAlreadyInitializedAccount(
 			T::RelayChainAccountId,
 			Option<T::AccountId>,
-			BalanceOf<T>,
+			Balance,
 		),
 		/// When initializing the reward vec an already initialized account was found
 		InitializedAccountWithNotEnoughContribution(
 			T::RelayChainAccountId,
 			Option<T::AccountId>,
-			BalanceOf<T>,
+			Balance,
 		),
 	}
 }

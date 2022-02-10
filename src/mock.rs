@@ -16,28 +16,29 @@
 
 //! Test utilities
 use crate::{self as pallet_crowdloan_rewards, Config};
-use cumulus_primitives_core::relay_chain::BlockNumber as RelayChainBlockNumber;
-use cumulus_primitives_core::PersistedValidationData;
-use cumulus_primitives_parachain_inherent::ParachainInherentData;
-use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use frame_support::{
 	construct_runtime,
 	dispatch::UnfilteredDispatchable,
 	inherent::{InherentData, ProvideInherent},
-	parameter_types,
-	traits::{GenesisBuild, Nothing, OnFinalize, OnInitialize},
+	parameter_types, PalletId,
+	traits::{GenesisBuild, Nothing, OnFinalize, OnInitialize, Contains},
 };
 use frame_system::{EnsureSigned, RawOrigin};
 use sp_core::{ed25519, Pair, H256};
 use sp_io;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, IdentityLookup, AccountIdConversion},
 	Perbill,
 };
 use sp_std::convert::{From, TryInto};
+use orml_traits::{parameter_type_with_key};
+use mangata_primitives::{Amount, Balance, TokenId};
+use orml_tokens::{MultiTokenCurrency, MultiTokenCurrencyExtended};
 
-pub type Balance = u128;
+pub const MGA_TOKEN_ID: TokenId = 0;
+pub type BlockNumber = u64;
+pub type AccountId = u64;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -49,27 +50,11 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		Crowdloan: pallet_crowdloan_rewards::{Pallet, Call, Storage, Event<T>},
-		ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>},
+		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},
+		Crowdloan: pallet_crowdloan_rewards::{Pallet, Call, Storage, Event<T>, Config},
 		Utility: pallet_utility::{Pallet, Call, Storage, Event},
 	}
 );
-
-parameter_types! {
-	pub ParachainId: cumulus_primitives_core::ParaId = 100.into();
-}
-
-impl cumulus_pallet_parachain_system::Config for Test {
-	type SelfParaId = ParachainId;
-	type Event = Event;
-	type OnValidationData = ();
-	type OutboundXcmpMessageSource = ();
-	type XcmpMessageHandler = ();
-	type ReservedXcmpWeight = ();
-	type DmpMessageHandler = ();
-	type ReservedDmpWeight = ();
-}
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -84,10 +69,10 @@ impl frame_system::Config for Test {
 	type Origin = Origin;
 	type Index = u64;
 	type Call = Call;
-	type BlockNumber = u64;
+	type BlockNumber = BlockNumber;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -95,28 +80,46 @@ impl frame_system::Config for Test {
 	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<Balance>;
+	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
-	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
+	type OnSetCode = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 }
 
-parameter_types! {
-	pub const ExistentialDeposit: u128 = 1;
+parameter_type_with_key! {
+	pub ExistentialDeposits: |currency_id: TokenId| -> Balance {
+		match currency_id {
+			_ => 0,
+		}
+	};
 }
 
-impl pallet_balances::Config for Test {
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
-	type MaxLocks = ();
-	type Balance = Balance;
+pub struct DustRemovalWhitelist;
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		*a == TreasuryAccount::get()
+	}
+}
+
+parameter_types! {
+	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account();
+	pub const MaxLocks: u32 = 50;
+	pub const MgaTokenId: TokenId = MGA_TOKEN_ID;
+}
+
+impl orml_tokens::Config for Test {
 	type Event = Event;
-	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
-	type AccountStore = System;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = TokenId;
 	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = ();
+	type MaxLocks = MaxLocks;
+	type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
 parameter_types! {
@@ -134,7 +137,8 @@ impl Config for Test {
 	type InitializationPayment = TestInitializationPayment;
 	type MaxInitContributors = TestMaxInitContributors;
 	type MinimumReward = TestMinimumReward;
-	type RewardCurrency = Balances;
+	type NativeTokenId = MgaTokenId;
+	type Tokens = orml_tokens::MultiTokenCurrencyAdapter<Test>;
 	type RelayChainAccountId = [u8; 32];
 	type RewardAddressRelayVoteThreshold = TestRewardAddressRelayVoteThreshold;
 	// The origin that is allowed to associate the reward
@@ -143,9 +147,8 @@ impl Config for Test {
 	type RewardAddressChangeOrigin = EnsureSigned<Self::AccountId>;
 	type SignatureNetworkIdentifier = TestSigantureNetworkIdentifier;
 
-	type VestingBlockNumber = RelayChainBlockNumber;
-	type VestingBlockProvider =
-		cumulus_pallet_parachain_system::RelaychainBlockNumberProvider<Self>;
+	type VestingBlockNumber = BlockNumber;
+	type VestingBlockProvider = System;
 	type WeightInfo = ();
 }
 
@@ -153,16 +156,28 @@ impl pallet_utility::Config for Test {
 	type Event = Event;
 	type Call = Call;
 	type WeightInfo = ();
-	type PalletsOrigin = OriginCaller;
 }
 
-fn genesis(funded_amount: Balance) -> sp_io::TestExternalities {
+fn genesis(crowdloan_allocation: Balance) -> sp_io::TestExternalities {
 	let mut storage = frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
 		.unwrap();
-	pallet_crowdloan_rewards::GenesisConfig::<Test> { funded_amount }
-		.assimilate_storage(&mut storage)
-		.expect("Pallet balances storage can be assimilated");
+
+	orml_tokens::GenesisConfig::<Test> {
+		tokens_endowment: vec![(0u64, 0u32, 2_000_000_000)],
+		vesting_tokens: Default::default(),
+		created_tokens_for_staking: Default::default(),
+	}
+	.assimilate_storage(&mut storage)
+	.expect("Tokens storage can be assimilated");
+
+	GenesisBuild::<Test>::assimilate_storage(
+		&pallet_crowdloan_rewards::GenesisConfig {
+			crowdloan_allocation: crowdloan_allocation,
+		},
+		&mut storage,
+	)
+	.expect("pallet-crowdloan-rewards's storage can be assimilated");
 
 	let mut ext = sp_io::TestExternalities::from(storage);
 	ext.execute_with(|| System::set_block_number(1));
@@ -220,45 +235,12 @@ pub(crate) fn batch_events() -> Vec<pallet_utility::Event> {
 
 pub(crate) fn roll_to(n: u64) {
 	while System::block_number() < n {
-		// Relay chain Stuff. I might actually set this to a number different than N
-		let sproof_builder = RelayStateSproofBuilder::default();
-		let (relay_parent_storage_root, relay_chain_state) =
-			sproof_builder.into_state_root_and_proof();
-		let vfp = PersistedValidationData {
-			relay_parent_number: (System::block_number() + 1u64) as RelayChainBlockNumber,
-			relay_parent_storage_root,
-			..Default::default()
-		};
-		let inherent_data = {
-			let mut inherent_data = InherentData::default();
-			let system_inherent_data = ParachainInherentData {
-				validation_data: vfp.clone(),
-				relay_chain_state,
-				downward_messages: Default::default(),
-				horizontal_messages: Default::default(),
-			};
-			inherent_data
-				.put_data(
-					cumulus_primitives_parachain_inherent::INHERENT_IDENTIFIER,
-					&system_inherent_data,
-				)
-				.expect("failed to put VFP inherent");
-			inherent_data
-		};
-
-		ParachainSystem::on_initialize(System::block_number());
-		ParachainSystem::create_inherent(&inherent_data)
-			.expect("got an inherent")
-			.dispatch_bypass_filter(RawOrigin::None.into())
-			.expect("dispatch succeeded");
-		ParachainSystem::on_finalize(System::block_number());
-
 		Crowdloan::on_finalize(System::block_number());
-		Balances::on_finalize(System::block_number());
+		Tokens::on_finalize(System::block_number());
 		System::on_finalize(System::block_number());
 		System::set_block_number(System::block_number() + 1);
 		System::on_initialize(System::block_number());
-		Balances::on_initialize(System::block_number());
+		Tokens::on_initialize(System::block_number());
 		Crowdloan::on_initialize(System::block_number());
 	}
 }
