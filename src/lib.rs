@@ -74,20 +74,16 @@ pub mod weights;
 pub mod pallet {
 
 	use crate::weights::WeightInfo;
-	use frame_support::{
-		pallet_prelude::*,
-	};
+	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use mangata_primitives::{Balance, TokenId};
+	use orml_tokens::{MultiTokenCurrency, MultiTokenCurrencyExtended};
 	use sp_core::crypto::AccountId32;
-	use sp_runtime::traits::{
-		AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Verify, Zero
-	};
-	use sp_runtime::{MultiSignature, Perbill, DispatchErrorWithPostInfo};
+	use sp_runtime::traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Verify, Zero};
+	use sp_runtime::{DispatchErrorWithPostInfo, MultiSignature, Perbill};
 	use sp_std::collections::btree_map::BTreeMap;
 	use sp_std::vec;
 	use sp_std::vec::Vec;
-	use mangata_primitives::{Balance, TokenId};
-	use orml_tokens::{MultiTokenCurrency, MultiTokenCurrencyExtended};
 
 	#[pallet::pallet]
 	// The crowdloan rewards pallet
@@ -120,7 +116,8 @@ pub mod pallet {
 		#[pallet::constant]
 		type NativeTokenId: Get<TokenId>;
 		/// The currency in which the rewards will be paid (probably the parachain native currency)
-		type Tokens: MultiTokenCurrency<Self::AccountId> + MultiTokenCurrencyExtended<Self::AccountId>;
+		type Tokens: MultiTokenCurrency<Self::AccountId>
+			+ MultiTokenCurrencyExtended<Self::AccountId>;
 		/// The AccountId type contributors used on the relay chain.
 		type RelayChainAccountId: Parameter
 			//TODO these AccountId32 bounds feel a little extraneous. I wonder if we can remove them.
@@ -232,9 +229,9 @@ pub mod pallet {
 			let mint_result = T::Tokens::mint(
 				T::NativeTokenId::get().into(),
 				&reward_account,
-				first_payment.into()
+				first_payment.into(),
 			);
-			if mint_result.is_err(){
+			if mint_result.is_err() {
 				Self::deposit_event(Event::InitialPaymentMade(
 					reward_account.clone(),
 					Balance::zero(),
@@ -365,11 +362,13 @@ pub mod pallet {
 			let mint_result = T::Tokens::mint(
 				T::NativeTokenId::get().into(),
 				&payee,
-				payable_amount.into()
+				payable_amount.into(),
 			);
-			if mint_result.is_err(){
+			if mint_result.is_err() {
 				if now < EndVestingBlock::<T>::get() {
-					return Err(DispatchErrorWithPostInfo::from(Error::<T>::ClaimingLessThanED));
+					return Err(DispatchErrorWithPostInfo::from(
+						Error::<T>::ClaimingLessThanED,
+					));
 				}
 				// Emit event
 				Self::deposit_event(Event::RewardsPaid(payee.clone(), Balance::zero()));
@@ -379,7 +378,7 @@ pub mod pallet {
 				Self::deposit_event(Event::RewardsPaid(payee.clone(), payable_amount));
 				AccountsPayable::<T>::insert(&payee, &info);
 			}
-			
+
 			Ok(Default::default())
 		}
 
@@ -440,7 +439,8 @@ pub mod pallet {
 
 			let total_initialized_rewards = InitializedRewardAmount::<T>::get();
 
-			let reward_difference = Self::get_crowdloan_allocation().saturating_sub(total_initialized_rewards);
+			let reward_difference =
+				Self::get_crowdloan_allocation().saturating_sub(total_initialized_rewards);
 
 			// Ensure the difference is not bigger than the total number of contributors
 			ensure!(
@@ -485,9 +485,7 @@ pub mod pallet {
 
 			let incoming_rewards: Balance = rewards
 				.iter()
-				.fold(0u32.into(), |acc: Balance, (_, _, reward)| {
-					acc + *reward
-				});
+				.fold(0u32.into(), |acc: Balance, (_, _, reward)| acc + *reward);
 
 			// Ensure we dont go over funds
 			ensure!(
@@ -529,9 +527,9 @@ pub mod pallet {
 					let mint_result = T::Tokens::mint(
 						T::NativeTokenId::get().into(),
 						&native_account,
-						first_payment.into()
+						first_payment.into(),
 					);
-					if mint_result.is_err(){
+					if mint_result.is_err() {
 						Self::deposit_event(Event::InitialPaymentMade(
 							native_account.clone(),
 							Balance::zero(),
@@ -711,8 +709,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_crowdloan_allocation)]
-	pub type CrowdloanAllocation<T: Config> =
-		StorageValue<_, Balance, ValueQuery>;
+	pub type CrowdloanAllocation<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn accounts_payable)]
@@ -767,11 +764,7 @@ pub mod pallet {
 		/// A contributor has updated the reward address.
 		RewardAddressUpdated(T::AccountId, T::AccountId),
 		/// When initializing the reward vec an already initialized account was found
-		InitializedAlreadyInitializedAccount(
-			T::RelayChainAccountId,
-			Option<T::AccountId>,
-			Balance,
-		),
+		InitializedAlreadyInitializedAccount(T::RelayChainAccountId, Option<T::AccountId>, Balance),
 		/// When initializing the reward vec an already initialized account was found
 		InitializedAccountWithNotEnoughContribution(
 			T::RelayChainAccountId,

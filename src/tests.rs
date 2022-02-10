@@ -23,7 +23,6 @@ use mock::*;
 use parity_scale_codec::Encode;
 use sp_core::Pair;
 use sp_runtime::MultiSignature;
-use orml_tokens::MultiTokenCurrency;
 
 // Constant that reflects the desired vesting period for the tests
 // Most tests complete initialization passing initRelayBlock + VESTING as the endRelayBlock

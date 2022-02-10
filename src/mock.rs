@@ -17,24 +17,21 @@
 //! Test utilities
 use crate::{self as pallet_crowdloan_rewards, Config};
 use frame_support::{
-	construct_runtime,
-	dispatch::UnfilteredDispatchable,
-	inherent::{InherentData, ProvideInherent},
-	parameter_types, PalletId,
-	traits::{GenesisBuild, Nothing, OnFinalize, OnInitialize, Contains},
+	construct_runtime, parameter_types,
+	traits::{Contains, GenesisBuild, Nothing, OnFinalize, OnInitialize},
+	PalletId,
 };
-use frame_system::{EnsureSigned, RawOrigin};
+use frame_system::EnsureSigned;
+use mangata_primitives::{Amount, Balance, TokenId};
+use orml_traits::parameter_type_with_key;
 use sp_core::{ed25519, Pair, H256};
 use sp_io;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup, AccountIdConversion},
+	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
 	Perbill,
 };
 use sp_std::convert::{From, TryInto};
-use orml_traits::{parameter_type_with_key};
-use mangata_primitives::{Amount, Balance, TokenId};
-use orml_tokens::{MultiTokenCurrency, MultiTokenCurrencyExtended};
 
 pub const MGA_TOKEN_ID: TokenId = 0;
 pub type BlockNumber = u64;
