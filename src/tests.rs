@@ -26,7 +26,7 @@ use sp_runtime::MultiSignature;
 
 // Constant that reflects the desired vesting period for the tests
 // Most tests complete initialization passing initRelayBlock + VESTING as the endRelayBlock
-const VESTING: u32 = 8;
+const VESTING: u64 = 8;
 
 #[test]
 fn geneses() {
@@ -34,7 +34,7 @@ fn geneses() {
 		assert!(System::events().is_empty());
 		// Insert contributors
 		let pairs = get_ed25519_pairs(3);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			Origin::root(),
 			vec![
@@ -86,7 +86,7 @@ fn proving_assignation_works() {
 	empty().execute_with(|| {
 		// Insert contributors
 		let pairs = get_ed25519_pairs(3);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			Origin::root(),
 			vec![
@@ -180,8 +180,7 @@ fn initializing_multi_relay_to_single_native_address_works() {
 		// Insert contributors
 		let pairs = get_ed25519_pairs(3);
 		// The init relay block gets inserted
-		roll_to(2);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			Origin::root(),
 			vec![
@@ -205,7 +204,7 @@ fn initializing_multi_relay_to_single_native_address_works() {
 			vec![[1u8; 32], [2u8; 32]]
 		);
 
-		roll_to(4);
+		roll_to(3);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 400);
 		assert_noop!(
@@ -228,8 +227,7 @@ fn paying_works_step_by_step() {
 		// Insert contributors
 		let pairs = get_ed25519_pairs(3);
 		// The init relay block gets inserted
-		roll_to(2);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			Origin::root(),
 			vec![
@@ -246,32 +244,32 @@ fn paying_works_step_by_step() {
 		));
 		// 1 is payable
 		assert!(Crowdloan::accounts_payable(&1).is_some());
-		roll_to(4);
+		roll_to(3);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 200);
 		assert_noop!(
 			Crowdloan::claim(Origin::signed(3)),
 			Error::<Test>::NoAssociatedClaim
 		);
-		roll_to(5);
+		roll_to(4);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 250);
-		roll_to(6);
+		roll_to(5);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 300);
-		roll_to(7);
+		roll_to(6);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 350);
-		roll_to(8);
+		roll_to(7);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 400);
-		roll_to(9);
+		roll_to(8);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 450);
-		roll_to(10);
+		roll_to(9);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 500);
-		roll_to(11);
+		roll_to(10);
 		assert_noop!(
 			Crowdloan::claim(Origin::signed(1)),
 			Error::<Test>::RewardsAlreadyClaimed
@@ -298,8 +296,7 @@ fn paying_works_after_unclaimed_period() {
 		// Insert contributors
 		let pairs = get_ed25519_pairs(3);
 		// The init relay block gets inserted
-		roll_to(2);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			Origin::root(),
 			vec![
@@ -317,26 +314,26 @@ fn paying_works_after_unclaimed_period() {
 
 		// 1 is payable
 		assert!(Crowdloan::accounts_payable(&1).is_some());
-		roll_to(4);
+		roll_to(3);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 200);
 		assert_noop!(
 			Crowdloan::claim(Origin::signed(3)),
 			Error::<Test>::NoAssociatedClaim
 		);
-		roll_to(5);
+		roll_to(4);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 250);
-		roll_to(6);
+		roll_to(5);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 300);
-		roll_to(7);
+		roll_to(6);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 350);
-		roll_to(11);
+		roll_to(10);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_eq!(Crowdloan::accounts_payable(&1).unwrap().claimed_reward, 500);
-		roll_to(330);
+		roll_to(329);
 		assert_noop!(
 			Crowdloan::claim(Origin::signed(1)),
 			Error::<Test>::RewardsAlreadyClaimed
@@ -366,7 +363,7 @@ fn paying_late_joiner_works() {
 	empty().execute_with(|| {
 		// Insert contributors
 		let pairs = get_ed25519_pairs(3);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			Origin::root(),
 			vec![
@@ -408,8 +405,7 @@ fn update_address_works() {
 		// Insert contributors
 		let pairs = get_ed25519_pairs(3);
 		// The init relay block gets inserted
-		roll_to(2);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			Origin::root(),
 			vec![
@@ -425,7 +421,7 @@ fn update_address_works() {
 			init_block + VESTING
 		));
 
-		roll_to(4);
+		roll_to(3);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 		assert_noop!(
 			Crowdloan::claim(Origin::signed(8)),
@@ -433,7 +429,7 @@ fn update_address_works() {
 		);
 		assert_ok!(Crowdloan::update_reward_address(Origin::signed(1), 8));
 		assert_eq!(Crowdloan::accounts_payable(&8).unwrap().claimed_reward, 200);
-		roll_to(6);
+		roll_to(5);
 		assert_ok!(Crowdloan::claim(Origin::signed(8)));
 		assert_eq!(Crowdloan::accounts_payable(&8).unwrap().claimed_reward, 300);
 		// The initial payment is not
@@ -455,7 +451,7 @@ fn update_address_with_existing_address_fails() {
 		let pairs = get_ed25519_pairs(3);
 		// The init relay block gets inserted
 		roll_to(2);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			Origin::root(),
 			vec![
@@ -487,8 +483,7 @@ fn update_address_with_existing_with_multi_address_works() {
 		// Insert contributors
 		let pairs = get_ed25519_pairs(3);
 		// The init relay block gets inserted
-		roll_to(2);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			Origin::root(),
 			vec![
@@ -504,7 +499,7 @@ fn update_address_with_existing_with_multi_address_works() {
 			init_block + VESTING
 		));
 
-		roll_to(4);
+		roll_to(3);
 		assert_ok!(Crowdloan::claim(Origin::signed(1)));
 
 		// We make sure all rewards go to the new address
@@ -526,7 +521,7 @@ fn initialize_new_addresses() {
 		roll_to(2);
 		// Insert contributors
 		let pairs = get_ed25519_pairs(3);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			Origin::root(),
 			vec![
@@ -561,47 +556,13 @@ fn initialize_new_addresses() {
 }
 
 #[test]
-fn initialize_new_addresses_handle_dust() {
-	empty().execute_with(|| {
-		// The init relay block gets inserted
-		roll_to(2);
-		// Insert contributors
-		let pairs = get_ed25519_pairs(2);
-		let init_block = Crowdloan::init_vesting_block();
-		assert_ok!(Crowdloan::initialize_reward_vec(
-			Origin::root(),
-			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(2), 500u32.into()),
-				(pairs[0].public().into(), None, 500u32.into()),
-				(pairs[1].public().into(), None, 999u32.into()),
-			]
-		));
-
-		let crowdloan_pot = Crowdloan::pot();
-		let previous_issuance = Balances::total_issuance();
-		assert_ok!(Crowdloan::complete_initialization(
-			Origin::root(),
-			init_block + VESTING
-		));
-
-		// We have burnt 1 unit
-		assert!(Crowdloan::pot() == crowdloan_pot - 1);
-		assert!(Balances::total_issuance() == previous_issuance - 1);
-
-		assert_eq!(Crowdloan::initialized(), true);
-		assert_eq!(Balances::free_balance(10), 0);
-	});
-}
-
-#[test]
 fn initialize_new_addresses_not_matching_funds() {
 	empty().execute_with(|| {
 		// The init relay block gets inserted
 		roll_to(2);
 		// Insert contributors
 		let pairs = get_ed25519_pairs(2);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		// Total supply is 2500.Lets ensure inserting 2495 is not working.
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			Origin::root(),
@@ -624,7 +585,7 @@ fn initialize_new_addresses_with_batch() {
 	empty().execute_with(|| {
 		// This time should succeed trully
 		roll_to(10);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(mock::Call::Utility(UtilityCall::batch_all {
 			calls: vec![
 				mock::Call::Crowdloan(crate::Call::initialize_reward_vec {
@@ -673,8 +634,7 @@ fn initialize_new_addresses_with_batch() {
 fn floating_point_arithmetic_works() {
 	empty().execute_with(|| {
 		// The init relay block gets inserted
-		roll_to(2);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(mock::Call::Utility(UtilityCall::batch_all {
 			calls: vec![
 				mock::Call::Crowdloan(crate::Call::initialize_reward_vec {
@@ -704,7 +664,7 @@ fn floating_point_arithmetic_works() {
 		// Block relay number is 2 post init initialization
 		// In this case there is no problem. Here we pay 12.5*2=25
 		// Total claimed reward: 25+25 = 50
-		roll_to(4);
+		roll_to(3);
 
 		assert_ok!(Crowdloan::claim(Origin::signed(3)));
 
@@ -712,7 +672,7 @@ fn floating_point_arithmetic_works() {
 			Crowdloan::accounts_payable(&3).unwrap().claimed_reward,
 			50u128
 		);
-		roll_to(5);
+		roll_to(4);
 		// If we claim now we have to pay 12.5. 12 will be paid.
 		assert_ok!(Crowdloan::claim(Origin::signed(3)));
 
@@ -720,7 +680,7 @@ fn floating_point_arithmetic_works() {
 			Crowdloan::accounts_payable(&3).unwrap().claimed_reward,
 			62u128
 		);
-		roll_to(6);
+		roll_to(5);
 		// Now we should pay 12.5. However the calculus will be:
 		// Account 3 should have claimed 50 + 25 at this block, but
 		// he only claimed 62. The payment is 13
@@ -745,8 +705,7 @@ fn floating_point_arithmetic_works() {
 fn reward_below_vesting_period_works() {
 	empty().execute_with(|| {
 		// The init relay block gets inserted
-		roll_to(2);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 		assert_ok!(mock::Call::Utility(UtilityCall::batch_all {
 			calls: vec![
 				mock::Call::Crowdloan(crate::Call::initialize_reward_vec {
@@ -776,7 +735,7 @@ fn reward_below_vesting_period_works() {
 		// Block relay number is 2 post init initialization
 		// Here we should pay floor(0.625*2)=1
 		// Total claimed reward: 1+1 = 2
-		roll_to(4);
+		roll_to(3);
 
 		assert_ok!(Crowdloan::claim(Origin::signed(3)));
 
@@ -784,7 +743,7 @@ fn reward_below_vesting_period_works() {
 			Crowdloan::accounts_payable(&3).unwrap().claimed_reward,
 			2u128
 		);
-		roll_to(5);
+		roll_to(4);
 		// If we claim now we have to pay floor(0.625) = 0
 		assert_ok!(Crowdloan::claim(Origin::signed(3)));
 
@@ -792,7 +751,7 @@ fn reward_below_vesting_period_works() {
 			Crowdloan::accounts_payable(&3).unwrap().claimed_reward,
 			2u128
 		);
-		roll_to(6);
+		roll_to(5);
 		// Now we should pay 1 again. The claimer should have claimed floor(0.625*4) + 1
 		// but he only claimed 2
 		assert_ok!(Crowdloan::claim(Origin::signed(3)));
@@ -800,14 +759,14 @@ fn reward_below_vesting_period_works() {
 			Crowdloan::accounts_payable(&3).unwrap().claimed_reward,
 			3u128
 		);
-		roll_to(10);
+		roll_to(9);
 		// We pay the remaining
 		assert_ok!(Crowdloan::claim(Origin::signed(3)));
 		assert_eq!(
 			Crowdloan::accounts_payable(&3).unwrap().claimed_reward,
 			6u128
 		);
-		roll_to(11);
+		roll_to(10);
 		// Nothing more to claim
 		assert_noop!(
 			Crowdloan::claim(Origin::signed(3)),
@@ -832,9 +791,9 @@ fn test_initialization_errors() {
 	empty().execute_with(|| {
 		// The init relay block gets inserted
 		roll_to(2);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 
-		let pot = Crowdloan::pot();
+		let pot = Crowdloan::get_crowdloan_allocation();
 
 		// Too many contributors
 		assert_noop!(
@@ -909,7 +868,7 @@ fn test_relay_signatures_can_change_reward_addresses() {
 
 		// The init relay block gets inserted
 		roll_to(2);
-		let init_block = Crowdloan::init_vesting_block();
+		let init_block = 1u64;
 
 		// We will have all pointint to the same reward account
 		assert_ok!(Crowdloan::initialize_reward_vec(
