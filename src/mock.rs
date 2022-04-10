@@ -146,7 +146,15 @@ impl Config for Test {
 
 	type VestingBlockNumber = BlockNumber;
 	type VestingBlockProvider = System;
+	type CrowdloanRewardAllocationProvider= TestCrowdloanRewardAllocationProvider;
 	type WeightInfo = ();
+}
+
+pub struct TestCrowdloanRewardAllocationProvider;
+impl TestCrowdloanRewardAllocationProvider for ProvideCrowdloanRewardAllocation{
+	fn get_crowdloan_allocation() -> Balance {
+		2500u128.into()
+	}
 }
 
 impl pallet_utility::Config for Test {
@@ -155,7 +163,7 @@ impl pallet_utility::Config for Test {
 	type WeightInfo = ();
 }
 
-fn genesis(crowdloan_allocation: Balance) -> sp_io::TestExternalities {
+fn genesis() -> sp_io::TestExternalities {
 	let mut storage = frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
 		.unwrap();
@@ -167,14 +175,6 @@ fn genesis(crowdloan_allocation: Balance) -> sp_io::TestExternalities {
 	}
 	.assimilate_storage(&mut storage)
 	.expect("Tokens storage can be assimilated");
-
-	GenesisBuild::<Test>::assimilate_storage(
-		&pallet_crowdloan_rewards::GenesisConfig {
-			crowdloan_allocation: crowdloan_allocation,
-		},
-		&mut storage,
-	)
-	.expect("pallet-crowdloan-rewards's storage can be assimilated");
 
 	let mut ext = sp_io::TestExternalities::from(storage);
 	ext.execute_with(|| System::set_block_number(1));
@@ -199,7 +199,7 @@ pub(crate) fn get_ed25519_pairs(num: u32) -> Vec<ed25519::Pair> {
 }
 
 pub(crate) fn empty() -> sp_io::TestExternalities {
-	genesis(2500u32.into())
+	genesis()
 }
 
 pub(crate) fn events() -> Vec<super::Event<Test>> {

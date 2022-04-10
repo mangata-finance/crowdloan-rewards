@@ -84,6 +84,7 @@ pub mod pallet {
 	use sp_std::collections::btree_map::BTreeMap;
 	use sp_std::vec;
 	use sp_std::vec::Vec;
+	use pallet_issuance::ProvideCrowdloanRewardAllocation;
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -143,6 +144,9 @@ pub mod pallet {
 		/// The notion of time that will be used for vesting. Probably
 		/// either the relay chain or sovereign chain block number.
 		type VestingBlockProvider: BlockNumberProvider<BlockNumber = Self::VestingBlockNumber>;
+
+		/// The module that provides the crowdloan rewards allocation
+		type CrowdloanRewardAllocationProvider: ProvideCrowdloanRewardAllocation;
 
 		type WeightInfo: WeightInfo;
 	}
@@ -441,7 +445,7 @@ pub mod pallet {
 			let total_initialized_rewards = InitializedRewardAmount::<T>::get();
 
 			let reward_difference =
-				Self::get_crowdloan_allocation().saturating_sub(total_initialized_rewards);
+				Pallet::<T>::get_crowdloan_allocation().saturating_sub(total_initialized_rewards);
 
 			// Ensure the difference is not bigger than the total number of contributors
 			ensure!(
@@ -490,7 +494,7 @@ pub mod pallet {
 
 			// Ensure we dont go over funds
 			ensure!(
-				total_initialized_rewards + incoming_rewards <= Self::get_crowdloan_allocation(),
+				total_initialized_rewards + incoming_rewards <= Pallet::<T>::get_crowdloan_allocation(),
 				Error::<T>::BatchBeyondFundPot
 			);
 
@@ -592,6 +596,11 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+
+		fn get_crowdloan_allocation() -> Balance{
+			T::CrowdloanRewardAllocationProvider::get_crowdloan_allocation().unwrap_or(Balance::zero())
+		}
+
 		/// Verify a set of signatures made with relay chain accounts
 		/// We are verifying all the signatures, and then counting
 		/// We could do something more efficient like count as we verify
@@ -684,33 +693,6 @@ pub mod pallet {
 		/// Please consider waiting until the EndVestingBlock to attempt this
 		ClaimingLessThanED,
 	}
-
-	#[pallet::genesis_config]
-	pub struct GenesisConfig {
-		/// The amount of funds this pallet controls
-		pub crowdloan_allocation: Balance,
-	}
-
-	#[cfg(feature = "std")]
-	impl Default for GenesisConfig {
-		fn default() -> Self {
-			Self {
-				crowdloan_allocation: Default::default(),
-			}
-		}
-	}
-
-	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig {
-		// This sets the funds of the crowdloan pallet
-		fn build(&self) {
-			CrowdloanAllocation::<T>::put(self.crowdloan_allocation);
-		}
-	}
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_crowdloan_allocation)]
-	pub type CrowdloanAllocation<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn accounts_payable)]
