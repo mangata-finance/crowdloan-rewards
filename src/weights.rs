@@ -57,6 +57,7 @@ pub trait WeightInfo {
 	fn update_reward_address() -> Weight;
 	fn associate_native_identity() -> Weight;
 	fn change_association_with_relay_keys(x: u32) -> Weight;
+	fn set_crowdloan_allocation() -> Weight;
 }
 
 /// Weights for pallet_crowdloan_rewards using the Substrate node and recommended hardware.
@@ -75,6 +76,10 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		(51_047_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(6 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+	}
+	fn set_crowdloan_allocation() -> Weight {
+		(147_000 as Weight)
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	fn claim() -> Weight {
 		(101_484_000 as Weight)
@@ -110,6 +115,10 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads((4 as Weight).saturating_mul(x as Weight)))
 			.saturating_add(RocksDbWeight::get().writes(5 as Weight))
 			.saturating_add(RocksDbWeight::get().writes((3 as Weight).saturating_mul(x as Weight)))
+	}
+	fn set_crowdloan_allocation() -> Weight {
+		(147_000 as Weight)
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	fn complete_initialization() -> Weight {
 		(51_047_000 as Weight)

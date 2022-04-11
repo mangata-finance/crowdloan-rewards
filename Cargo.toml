@@ -24,7 +24,6 @@ ed25519-dalek = { version = "1.0.1", default-features = false, features = ["u64_
 sp-trie = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev", default-features = false, optional = true }
 mangata-primitives = { git = "https://github.com/mangata-finance/mangata-node", branch = "develop", default-features = false }
 orml-tokens = { default-features = false, version = '0.4.1-dev', git = "https://github.com/mangata-finance/open-runtime-module-library", branch = "mangata-dev" }
-pallet-issuance = { git = "https://github.com/mangata-finance/mangata-node", branch = "develop", default-features = false }
 
 [dev-dependencies]
 orml-traits = { default-features = false, version = "0.4.1-dev", git = "https://github.com/mangata-finance/open-runtime-module-library", branch = "mangata-dev" }

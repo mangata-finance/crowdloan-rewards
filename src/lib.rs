@@ -84,7 +84,6 @@ pub mod pallet {
 	use sp_std::collections::btree_map::BTreeMap;
 	use sp_std::vec;
 	use sp_std::vec::Vec;
-	use pallet_issuance::ProvideCrowdloanRewardAllocation;
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -144,9 +143,6 @@ pub mod pallet {
 		/// The notion of time that will be used for vesting. Probably
 		/// either the relay chain or sovereign chain block number.
 		type VestingBlockProvider: BlockNumberProvider<BlockNumber = Self::VestingBlockNumber>;
-
-		/// The module that provides the crowdloan rewards allocation
-		type CrowdloanRewardAllocationProvider: ProvideCrowdloanRewardAllocation;
 
 		type WeightInfo: WeightInfo;
 	}
@@ -464,6 +460,20 @@ pub mod pallet {
 
 		/// This does not enforce any checks other than making sure we dont go over funds
 		/// complete_initialization should perform any additional
+		#[pallet::weight(T::WeightInfo::set_crowdloan_allocation())]
+		pub fn set_crowdloan_allocation(
+			origin: OriginFor<T>,
+			crowdloan_allocation_amount: Balance,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			CrowdloanAllocation::<T>::put(crowdloan_allocation_amount);
+			Ok(Default::default())
+		}
+
+		/// Initialize the reward distribution storage. It shortcuts whenever an error is found
+
+		/// This does not enforce any checks other than making sure we dont go over funds
+		/// complete_initialization should perform any additional
 		#[pallet::weight(T::WeightInfo::initialize_reward_vec(rewards.len() as u32))]
 		pub fn initialize_reward_vec(
 			origin: OriginFor<T>,
@@ -597,10 +607,6 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 
-		fn get_crowdloan_allocation() -> Balance{
-			T::CrowdloanRewardAllocationProvider::get_crowdloan_allocation().unwrap_or(Balance::zero())
-		}
-
 		/// Verify a set of signatures made with relay chain accounts
 		/// We are verifying all the signatures, and then counting
 		/// We could do something more efficient like count as we verify
@@ -693,6 +699,10 @@ pub mod pallet {
 		/// Please consider waiting until the EndVestingBlock to attempt this
 		ClaimingLessThanED,
 	}
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_crowdloan_allocation)]
+	pub type CrowdloanAllocation<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn accounts_payable)]
