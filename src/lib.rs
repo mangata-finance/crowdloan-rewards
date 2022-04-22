@@ -441,7 +441,7 @@ pub mod pallet {
 			let total_initialized_rewards = InitializedRewardAmount::<T>::get();
 
 			let reward_difference =
-				Self::get_crowdloan_allocation().saturating_sub(total_initialized_rewards);
+				Pallet::<T>::get_crowdloan_allocation().saturating_sub(total_initialized_rewards);
 
 			// Ensure the difference is not bigger than the total number of contributors
 			ensure!(
@@ -453,6 +453,20 @@ pub mod pallet {
 
 			<Initialized<T>>::put(true);
 
+			Ok(Default::default())
+		}
+
+		/// Initialize the reward distribution storage. It shortcuts whenever an error is found
+
+		/// This does not enforce any checks other than making sure we dont go over funds
+		/// complete_initialization should perform any additional
+		#[pallet::weight(T::WeightInfo::set_crowdloan_allocation())]
+		pub fn set_crowdloan_allocation(
+			origin: OriginFor<T>,
+			crowdloan_allocation_amount: Balance,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			CrowdloanAllocation::<T>::put(crowdloan_allocation_amount);
 			Ok(Default::default())
 		}
 
@@ -490,7 +504,7 @@ pub mod pallet {
 
 			// Ensure we dont go over funds
 			ensure!(
-				total_initialized_rewards + incoming_rewards <= Self::get_crowdloan_allocation(),
+				total_initialized_rewards + incoming_rewards <= Pallet::<T>::get_crowdloan_allocation(),
 				Error::<T>::BatchBeyondFundPot
 			);
 
@@ -592,6 +606,7 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+
 		/// Verify a set of signatures made with relay chain accounts
 		/// We are verifying all the signatures, and then counting
 		/// We could do something more efficient like count as we verify
@@ -683,29 +698,6 @@ pub mod pallet {
 		/// This is expected when claiming less than existential desposit on a non-existent account
 		/// Please consider waiting until the EndVestingBlock to attempt this
 		ClaimingLessThanED,
-	}
-
-	#[pallet::genesis_config]
-	pub struct GenesisConfig {
-		/// The amount of funds this pallet controls
-		pub crowdloan_allocation: Balance,
-	}
-
-	#[cfg(feature = "std")]
-	impl Default for GenesisConfig {
-		fn default() -> Self {
-			Self {
-				crowdloan_allocation: Default::default(),
-			}
-		}
-	}
-
-	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig {
-		// This sets the funds of the crowdloan pallet
-		fn build(&self) {
-			CrowdloanAllocation::<T>::put(self.crowdloan_allocation);
-		}
 	}
 
 	#[pallet::storage]
