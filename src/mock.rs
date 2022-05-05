@@ -48,7 +48,7 @@ construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},
-		Crowdloan: pallet_crowdloan_rewards::{Pallet, Call, Storage, Event<T>, Config},
+		Crowdloan: pallet_crowdloan_rewards::{Pallet, Call, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Storage, Event},
 	}
 );
@@ -83,6 +83,7 @@ impl frame_system::Config for Test {
 	type OnSetCode = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 parameter_type_with_key! {
@@ -143,23 +144,15 @@ impl Config for Test {
 	// The origin that is allowed to change the reward
 	type RewardAddressChangeOrigin = EnsureSigned<Self::AccountId>;
 	type SignatureNetworkIdentifier = TestSigantureNetworkIdentifier;
-
 	type VestingBlockNumber = BlockNumber;
 	type VestingBlockProvider = System;
-	type CrowdloanRewardAllocationProvider= TestCrowdloanRewardAllocationProvider;
 	type WeightInfo = ();
-}
-
-pub struct TestCrowdloanRewardAllocationProvider;
-impl TestCrowdloanRewardAllocationProvider for ProvideCrowdloanRewardAllocation{
-	fn get_crowdloan_allocation() -> Balance {
-		2500u128.into()
-	}
 }
 
 impl pallet_utility::Config for Test {
 	type Event = Event;
 	type Call = Call;
+	type PalletsOrigin = OriginCaller;
 	type WeightInfo = ();
 }
 
@@ -170,14 +163,16 @@ fn genesis() -> sp_io::TestExternalities {
 
 	orml_tokens::GenesisConfig::<Test> {
 		tokens_endowment: vec![(0u64, 0u32, 2_000_000_000)],
-		vesting_tokens: Default::default(),
 		created_tokens_for_staking: Default::default(),
 	}
 	.assimilate_storage(&mut storage)
 	.expect("Tokens storage can be assimilated");
 
 	let mut ext = sp_io::TestExternalities::from(storage);
-	ext.execute_with(|| System::set_block_number(1));
+	ext.execute_with(|| {
+		System::set_block_number(1);
+		Crowdloan::set_crowdloan_allocation(Origin::root(), 2500u128).unwrap();
+	});
 	ext
 }
 
