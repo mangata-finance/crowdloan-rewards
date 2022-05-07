@@ -501,7 +501,7 @@ pub mod pallet {
 
 			let incoming_rewards: Balance = rewards
 				.iter()
-				.fold(0u32.into(), |acc: Balance, (_, _, reward)| acc + *reward);
+				.fold(Balance::zero(), |acc: Balance, (_, _, reward)| acc + *reward);
 
 			// Ensure we dont go over funds
 			ensure!(
