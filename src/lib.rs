@@ -68,6 +68,7 @@ mod benchmarks;
 pub(crate) mod mock;
 #[cfg(test)]
 mod tests;
+pub mod weights;
 pub use weights::WeightInfo;
 
 #[pallet]
