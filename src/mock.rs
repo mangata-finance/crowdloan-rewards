@@ -1,4 +1,4 @@
-// Copyright 2019-2021 PureStake Inc.
+// Copyright 2019-2022 PureStake Inc.
 // This file is part of Moonbeam.
 
 // Moonbeam is free software: you can redistribute it and/or modify
@@ -54,6 +54,24 @@ construct_runtime!(
 );
 
 parameter_types! {
+<<<<<<< HEAD
+=======
+	pub ParachainId: cumulus_primitives_core::ParaId = 100.into();
+}
+
+impl cumulus_pallet_parachain_system::Config for Test {
+	type SelfParaId = ParachainId;
+	type Event = Event;
+	type OnSystemEvent = ();
+	type OutboundXcmpMessageSource = ();
+	type XcmpMessageHandler = ();
+	type ReservedXcmpWeight = ();
+	type DmpMessageHandler = ();
+	type ReservedDmpWeight = ();
+}
+
+parameter_types! {
+>>>>>>> 3bc4fd357f38abf2736525c04573a200c67a9b80
 	pub const BlockHashCount: u64 = 250;
 	pub BlockWeights: frame_system::limits::BlockWeights =
 		frame_system::limits::BlockWeights::simple_max(1024);

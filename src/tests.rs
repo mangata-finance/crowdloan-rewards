@@ -1,4 +1,4 @@
-// Copyright 2019-2021 PureStake Inc.
+// Copyright 2019-2022 PureStake Inc.
 // This file is part of Moonbeam.
 
 // Moonbeam is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@ use frame_support::{assert_noop, assert_ok};
 use mock::*;
 use parity_scale_codec::Encode;
 use sp_core::Pair;
-use sp_runtime::MultiSignature;
+use sp_runtime::{ModuleError, MultiSignature};
 
 // Constant that reflects the desired vesting period for the tests
 // Most tests complete initialization passing initRelayBlock + VESTING as the endRelayBlock
@@ -621,7 +621,7 @@ fn initialize_new_addresses_with_batch() {
 				index: 0,
 				error: DispatchError::Module {
 					index: 2,
-					error: 8,
+					error: [8, 0, 0, 0],
 					message: None,
 				},
 			},

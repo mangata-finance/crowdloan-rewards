@@ -1,4 +1,4 @@
-// Copyright 2019-2020 PureStake Inc.
+// Copyright 2019-2022 PureStake Inc.
 // This file is part of Moonbeam.
 
 // Moonbeam is free software: you can redistribute it and/or modify
@@ -538,6 +538,7 @@ pub mod pallet {
 				// If we have a native_account, we make the payment
 				let initial_payment = if let Some(native_account) = native_account {
 					let first_payment = T::InitializationPayment::get() * (*reward);
+
 					// Don't fail as this is supposed to be called with batch calls and we
 					// dont want to stall the rest of the contributions
 					// This can fail due to existential deposit check during minting
@@ -608,7 +609,6 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-
 		/// Verify a set of signatures made with relay chain accounts
 		/// We are verifying all the signatures, and then counting
 		/// We could do something more efficient like count as we verify
