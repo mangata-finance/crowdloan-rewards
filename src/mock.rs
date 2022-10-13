@@ -22,7 +22,7 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::EnsureSigned;
-use mangata_primitives::{Amount, Balance, TokenId};
+use mangata_types::{Amount, Balance, TokenId};
 use orml_traits::parameter_type_with_key;
 use sp_core::{ed25519, Pair, H256};
 use sp_io;

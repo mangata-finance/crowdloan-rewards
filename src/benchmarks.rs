@@ -1,7 +1,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use crate::{Call, Config, Pallet, WRAPPED_BYTES_PREFIX, WRAPPED_BYTES_POSTFIX};
-use mangata_primitives::{Balance};
+use mangata_types::{Balance};
 use ed25519_dalek::Signer;
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_support::{assert_ok, traits::{Get, OnFinalize}};

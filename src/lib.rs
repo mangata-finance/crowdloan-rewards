@@ -69,6 +69,7 @@ pub(crate) mod mock;
 #[cfg(test)]
 mod tests;
 pub mod weights;
+
 pub use weights::WeightInfo;
 
 #[pallet]
@@ -76,9 +77,10 @@ pub mod pallet {
 
 	use crate::weights::WeightInfo;
 	use frame_support::pallet_prelude::*;
+	use frame_support::traits::tokens::currency::{MultiTokenCurrency};
 	use frame_system::pallet_prelude::*;
-	use mangata_primitives::{Balance, TokenId};
-	use orml_tokens::{MultiTokenCurrency, MultiTokenCurrencyExtended};
+	use mangata_types::{Balance, TokenId};
+	use orml_tokens::{MultiTokenCurrencyExtended};
 	use sp_core::crypto::AccountId32;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Verify, Zero};
 	use sp_runtime::{DispatchErrorWithPostInfo, MultiSignature, Perbill};
