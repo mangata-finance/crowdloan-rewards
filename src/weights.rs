@@ -142,7 +142,6 @@ impl WeightInfo for () {
 	}
 	fn change_association_with_relay_keys(x: u32) -> Weight {
 		Weight::from_ref_time(0)
-		Weight::from_ref_time(47_373_000)
 			// Standard Error: 7_000
 			.saturating_add((Weight::from_ref_time(47_373_000)).saturating_mul(x as u64))
 			.saturating_add(RocksDbWeight::get().reads(6 as u64))
