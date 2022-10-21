@@ -3076,41 +3076,6 @@ version = "0.1.0"
 source = "git+https://github.com/mangata-finance//cumulus?branch=mangata-dev-v0.9.29#948ae3de7740129746bc3bcace84353fcd114019"
 
 [[patch.unused]]
-name = "artemis-asset"
-version = "0.1.1"
-source = "git+https://github.com/mangata-finance//snowbridge?branch=mangata-dev#5cd2e8fd82d06de6b2b57d86911f9c58a1bab160"
-
-[[patch.unused]]
-name = "artemis-core"
-version = "0.1.1"
-source = "git+https://github.com/mangata-finance//snowbridge?branch=mangata-dev#5cd2e8fd82d06de6b2b57d86911f9c58a1bab160"
-
-[[patch.unused]]
-name = "artemis-erc20-app"
-version = "0.1.1"
-source = "git+https://github.com/mangata-finance//snowbridge?branch=mangata-dev#5cd2e8fd82d06de6b2b57d86911f9c58a1bab160"
-
-[[patch.unused]]
-name = "artemis-eth-app"
-version = "0.1.1"
-source = "git+https://github.com/mangata-finance//snowbridge?branch=mangata-dev#5cd2e8fd82d06de6b2b57d86911f9c58a1bab160"
-
-[[patch.unused]]
-name = "artemis-ethereum"
-version = "0.1.0"
-source = "git+https://github.com/mangata-finance//snowbridge?branch=mangata-dev#5cd2e8fd82d06de6b2b57d86911f9c58a1bab160"
-
-[[patch.unused]]
-name = "pallet-bridge"
-version = "0.1.1"
-source = "git+https://github.com/mangata-finance//snowbridge?branch=mangata-dev#5cd2e8fd82d06de6b2b57d86911f9c58a1bab160"
-
-[[patch.unused]]
-name = "pallet-verifier"
-version = "0.1.1"
-source = "git+https://github.com/mangata-finance//snowbridge?branch=mangata-dev#5cd2e8fd82d06de6b2b57d86911f9c58a1bab160"
-
-[[patch.unused]]
 name = "beefy-gadget"
 version = "4.0.0-dev"
 source = "git+https://github.com/mangata-finance//substrate?branch=mangata-dev-v0.9.29#b512eaba85c9b6bdff0723ac375cfa3032c326e2"
@@ -3734,26 +3699,6 @@ source = "git+https://github.com/mangata-finance//substrate?branch=mangata-dev-v
 name = "parachain-staking"
 version = "3.0.0"
 source = "git+https://github.com/mangata-finance//moonbeam?branch=mangata-dev-v0.9.29#ed3d78f7664c513066417354eb23dc320fc07197"
-
-[[patch.unused]]
-name = "orml-unknown-tokens"
-version = "0.4.1-dev"
-source = "git+https://github.com/mangata-finance//open-runtime-module-library?branch=mangata-dev-v0.9.29#e8e5762991ad43ecc1aed16f20d0ca420a87de17"
-
-[[patch.unused]]
-name = "orml-xcm"
-version = "0.4.1-dev"
-source = "git+https://github.com/mangata-finance//open-runtime-module-library?branch=mangata-dev-v0.9.29#e8e5762991ad43ecc1aed16f20d0ca420a87de17"
-
-[[patch.unused]]
-name = "orml-xcm-support"
-version = "0.4.1-dev"
-source = "git+https://github.com/mangata-finance//open-runtime-module-library?branch=mangata-dev-v0.9.29#e8e5762991ad43ecc1aed16f20d0ca420a87de17"
-
-[[patch.unused]]
-name = "orml-xtokens"
-version = "0.4.1-dev"
-source = "git+https://github.com/mangata-finance//open-runtime-module-library?branch=mangata-dev-v0.9.29#e8e5762991ad43ecc1aed16f20d0ca420a87de17"
 
 [[patch.unused]]
 name = "pallet-xcm"
@@ -4624,3 +4569,23 @@ source = "git+https://github.com/mangata-finance//substrate?branch=mangata-dev-v
 name = "ver-api"
 version = "4.0.0-dev"
 source = "git+https://github.com/mangata-finance//substrate?branch=mangata-dev-v0.9.29#b512eaba85c9b6bdff0723ac375cfa3032c326e2"
+
+[[patch.unused]]
+name = "orml-unknown-tokens"
+version = "0.4.1-dev"
+source = "git+https://github.com/mangata-finance//open-runtime-module-library?branch=mangata-dev-v0.9.29#e8e5762991ad43ecc1aed16f20d0ca420a87de17"
+
+[[patch.unused]]
+name = "orml-xcm"
+version = "0.4.1-dev"
+source = "git+https://github.com/mangata-finance//open-runtime-module-library?branch=mangata-dev-v0.9.29#e8e5762991ad43ecc1aed16f20d0ca420a87de17"
+
+[[patch.unused]]
+name = "orml-xcm-support"
+version = "0.4.1-dev"
+source = "git+https://github.com/mangata-finance//open-runtime-module-library?branch=mangata-dev-v0.9.29#e8e5762991ad43ecc1aed16f20d0ca420a87de17"
+
+[[patch.unused]]
+name = "orml-xtokens"
+version = "0.4.1-dev"
+source = "git+https://github.com/mangata-finance//open-runtime-module-library?branch=mangata-dev-v0.9.29#e8e5762991ad43ecc1aed16f20d0ca420a87de17"
