@@ -131,7 +131,7 @@ pub mod pallet {
 			+ Ord;
 
 		// The origin that is allowed to change the reward address with relay signatures
-		type RewardAddressChangeOrigin: EnsureOrigin<Self::Origin>;
+		type RewardAddressChangeOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Network Identifier to be appended into the signatures for reward address change/association
 		/// Prevents replay attacks from one network to the other
@@ -139,7 +139,7 @@ pub mod pallet {
 		type SignatureNetworkIdentifier: Get<&'static [u8]>;
 
 		// The origin that is allowed to change the reward address with relay signatures
-		type RewardAddressAssociateOrigin: EnsureOrigin<Self::Origin>;
+		type RewardAddressAssociateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// The type that will be used to track vesting progress
 		type VestingBlockNumber: AtLeast32BitUnsigned + Parameter + Default + Into<Balance>;
