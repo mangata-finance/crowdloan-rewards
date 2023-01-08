@@ -182,7 +182,6 @@ pallet-democracy = { git = "https://github.com/mangata-finance//substrate", bran
 pallet-grandpa = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 frame-election-provider-support = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 pallet-collective = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
-pallet-mmr-rpc = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 pallet-mmr = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 #pallet-mmr-primitives = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 frame-support = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
@@ -251,7 +250,6 @@ substrate-wasm-builder = { git = "https://github.com/mangata-finance//substrate"
 try-runtime-cli = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 frame-benchmarking-cli = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 substrate-frame-rpc-system = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
-remote-externalities = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 substrate-build-script-utils = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 substrate-prometheus-endpoint = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 substrate-test-client = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
@@ -261,7 +259,7 @@ sp-authorship = { git = "https://github.com/mangata-finance//substrate", branch 
 sp-storage = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-std = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-finality-grandpa = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
-beefy-primitives = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
+sp-beefy = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-version-proc-macro = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-version = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-transaction-pool = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
@@ -277,7 +275,6 @@ sp-core-hashing = { git = "https://github.com/mangata-finance//substrate", branc
 sp-core = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-keyring = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-authority-discovery = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
-sp-tasks = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-runtime-interface-proc-macro = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-runtime-interface = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-arithmetic = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
@@ -343,7 +340,6 @@ pallet-democracy = { git = "https://github.com/mangata-finance//substrate", bran
 pallet-grandpa = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 frame-election-provider-support = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 pallet-collective = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
-pallet-mmr-rpc = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 pallet-mmr = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 #pallet-mmr-primitives = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 frame-support = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
@@ -412,7 +408,6 @@ substrate-wasm-builder = { git = "https://github.com/mangata-finance//substrate"
 try-runtime-cli = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 frame-benchmarking-cli = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 substrate-frame-rpc-system = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
-remote-externalities = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 substrate-build-script-utils = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 substrate-prometheus-endpoint = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 substrate-test-client = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
@@ -422,7 +417,7 @@ sp-authorship = { git = "https://github.com/mangata-finance//substrate", branch 
 sp-storage = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-std = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-finality-grandpa = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
-beefy-primitives = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
+sp-beefy = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-version-proc-macro = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-version = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-transaction-pool = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
@@ -438,7 +433,6 @@ sp-core-hashing = { git = "https://github.com/mangata-finance//substrate", branc
 sp-core = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-keyring = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-authority-discovery = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
-sp-tasks = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-runtime-interface-proc-macro = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-runtime-interface = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
 sp-arithmetic = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev-v0.9.36" }
