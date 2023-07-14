@@ -55,24 +55,22 @@ construct_runtime!(
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
-	pub BlockWeights: frame_system::limits::BlockWeights =
-		frame_system::limits::BlockWeights::simple_max(1024);
 }
 
 impl frame_system::Config for Test {
 	type BaseCallFilter = Nothing;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type Origin = Origin;
+	type RuntimeOrigin = RuntimeOrigin;
 	type Index = u64;
-	type Call = Call;
+	type RuntimeCall = RuntimeCall;
 	type BlockNumber = BlockNumber;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
 	type Version = ();
@@ -83,7 +81,7 @@ impl frame_system::Config for Test {
 	type OnSetCode = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = sp_core::ConstU32<16>;
 }
 
 parameter_type_with_key! {
@@ -103,22 +101,36 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 
 parameter_types! {
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account();
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 	pub const MaxLocks: u32 = 50;
 	pub const MgaTokenId: TokenId = MGA_TOKEN_ID;
 }
 
 impl orml_tokens::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = TokenId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = ();
 	type MaxLocks = MaxLocks;
 	type DustRemovalWhitelist = DustRemovalWhitelist;
+	type CurrencyHooks = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = [u8; 8];
 }
+
+// pub struct MockedBlockProvider;
+// impl sp_runtime::traits::BlockNumberProvider for MockedBlockProvider {
+// 	type BlockNumber = u64;
+//
+// 	fn current_block_number() -> Self::BlockNumber {
+// 		System::current_block_number().saturating_add(1)
+// 	}
+//
+// 	#[cfg(feature = "runtime-benchmarks")]
+// 	fn set_block_number(_block: Self::BlockNumber) {}
+// }
 
 parameter_types! {
 	pub const TestMaxInitContributors: u32 = 8;
@@ -130,7 +142,7 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Initialized = TestInitialized;
 	type InitializationPayment = TestInitializationPayment;
 	type MaxInitContributors = TestMaxInitContributors;
@@ -150,10 +162,10 @@ impl Config for Test {
 }
 
 impl pallet_utility::Config for Test {
-	type Event = Event;
-	type Call = Call;
-	type PalletsOrigin = OriginCaller;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
 	type WeightInfo = ();
+	type PalletsOrigin = OriginCaller;
 }
 
 fn genesis() -> sp_io::TestExternalities {
@@ -171,7 +183,7 @@ fn genesis() -> sp_io::TestExternalities {
 	let mut ext = sp_io::TestExternalities::from(storage);
 	ext.execute_with(|| {
 		System::set_block_number(1);
-		Crowdloan::set_crowdloan_allocation(Origin::root(), 2500u128).unwrap();
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 2500u128).unwrap();
 	});
 	ext
 }
@@ -202,7 +214,7 @@ pub(crate) fn events() -> Vec<super::Event<Test>> {
 		.into_iter()
 		.map(|r| r.event)
 		.filter_map(|e| {
-			if let Event::Crowdloan(inner) = e {
+			if let RuntimeEvent::Crowdloan(inner) = e {
 				Some(inner)
 			} else {
 				None
@@ -216,7 +228,7 @@ pub(crate) fn batch_events() -> Vec<pallet_utility::Event> {
 		.into_iter()
 		.map(|r| r.event)
 		.filter_map(|e| {
-			if let Event::Utility(inner) = e {
+			if let RuntimeEvent::Utility(inner) = e {
 				Some(inner)
 			} else {
 				None
@@ -224,6 +236,20 @@ pub(crate) fn batch_events() -> Vec<pallet_utility::Event> {
 		})
 		.collect::<Vec<_>>()
 }
+
+// pub(crate) fn roll_to(n: u64) {
+// 	let mut current_block_number = System::block_number();
+// 	while current_block_number < n {
+// 		Crowdloan::on_finalize(System::block_number());
+// 		Tokens::on_finalize(System::block_number());
+// 		System::on_finalize(System::block_number());
+// 		System::set_block_number(current_block_number);
+// 		current_block_number = current_block_number.saturating_add(1);
+// 		System::on_initialize(System::block_number());
+// 		Tokens::on_initialize(System::block_number());
+// 		Crowdloan::on_initialize(System::block_number());
+// 	}
+// }
 
 pub(crate) fn roll_to(n: u64) {
 	while System::block_number() < n {

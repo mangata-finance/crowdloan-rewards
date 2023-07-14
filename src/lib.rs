@@ -77,10 +77,10 @@ pub mod pallet {
 
 	use crate::weights::WeightInfo;
 	use frame_support::pallet_prelude::*;
-	use frame_support::traits::tokens::currency::{MultiTokenCurrency};
+	use frame_support::traits::tokens::currency::MultiTokenCurrency;
 	use frame_system::pallet_prelude::*;
 	use mangata_types::{Balance, TokenId};
-	use orml_tokens::{MultiTokenCurrencyExtended};
+	use orml_tokens::MultiTokenCurrencyExtended;
 	use sp_core::crypto::AccountId32;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Verify, Zero};
 	use sp_runtime::{DispatchErrorWithPostInfo, MultiSignature, Perbill};
@@ -564,7 +564,7 @@ pub mod pallet {
 					} else {
 						Self::deposit_event(Event::InitialPaymentMade(
 							native_account.clone(),
-							first_payment,
+							first_payment.into(),
 						));
 					}
 					first_payment
@@ -575,7 +575,7 @@ pub mod pallet {
 				// Calculate the reward info to store after the initial payment has been made.
 				let mut reward_info = RewardInfo {
 					total_reward: *reward,
-					claimed_reward: initial_payment,
+					claimed_reward: initial_payment.into(),
 					contributed_relay_addresses: vec![relay_account.clone()],
 				};
 
