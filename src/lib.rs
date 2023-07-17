@@ -533,6 +533,9 @@ pub mod pallet {
 					continue;
 				}
 
+				total_initialized_rewards += *reward;
+				total_contributors += 1;
+
 				if *reward < T::MinimumReward::get() {
 					// Don't fail as this is supposed to be called with batch calls and we
 					// dont want to stall the rest of the contributions
@@ -544,47 +547,17 @@ pub mod pallet {
 					continue;
 				}
 
-				// If we have a native_account, we make the payment
-				let initial_payment = if let Some(native_account) = native_account {
-					let first_payment = T::InitializationPayment::get() * (*reward);
-
-					// Don't fail as this is supposed to be called with batch calls and we
-					// dont want to stall the rest of the contributions
-					// This can fail due to existential deposit check during minting
-					let mint_result = T::Tokens::mint(
-						T::NativeTokenId::get().into(),
-						&native_account,
-						first_payment.into(),
-					);
-					if mint_result.is_err() {
-						Self::deposit_event(Event::InitialPaymentMade(
-							native_account.clone(),
-							Balance::zero(),
-						));
-					} else {
-						Self::deposit_event(Event::InitialPaymentMade(
-							native_account.clone(),
-							first_payment.into(),
-						));
-					}
-					first_payment
-				} else {
-					0u32.into()
-				};
 
 				// Calculate the reward info to store after the initial payment has been made.
 				let mut reward_info = RewardInfo {
 					total_reward: *reward,
-					claimed_reward: initial_payment.into(),
+					claimed_reward: 0,
 					contributed_relay_addresses: vec![relay_account.clone()],
 				};
 
-				total_initialized_rewards += *reward;
-				total_contributors += 1;
 
 				if let Some(native_account) = native_account {
-					if let Some(mut inserted_reward_info) =
-						AccountsPayable::<T>::get(native_account)
+					if let Some(mut inserted_reward_info) = AccountsPayable::<T>::get(native_account)
 					{
 						inserted_reward_info
 							.contributed_relay_addresses
@@ -615,6 +588,28 @@ pub mod pallet {
 
 			Ok(Default::default())
 		}
+
+		/// This does not enforce any checks other than making sure we dont go over funds
+		/// complete_initialization should perform any additional
+		#[pallet::call_index(7)]
+		#[pallet::weight(T::WeightInfo::set_crowdloan_allocation())]
+		pub fn restart_crowdloan_allocation(
+			origin: OriginFor<T>,
+			crowdloan_allocation_amount: Balance,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+
+			ensure!(
+				<Initialized<T>>::get(),
+				Error::<T>::RewardVecAlreadyInitialized
+			);
+
+			<Initialized<T>>::put(false);
+
+			CrowdloanAllocation::<T>::put(crowdloan_allocation_amount);
+			Ok(Default::default())
+		}
+
 	}
 
 	impl<T: Config> Pallet<T> {
