@@ -50,6 +50,7 @@ construct_runtime!(
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},
 		Crowdloan: pallet_crowdloan_rewards::{Pallet, Call, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Storage, Event},
+		Vesting: pallet_vesting_mangata::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -120,17 +121,20 @@ impl orml_tokens::Config for Test {
 	type ReserveIdentifier = [u8; 8];
 }
 
-// pub struct MockedBlockProvider;
-// impl sp_runtime::traits::BlockNumberProvider for MockedBlockProvider {
-// 	type BlockNumber = u64;
-//
-// 	fn current_block_number() -> Self::BlockNumber {
-// 		System::current_block_number().saturating_add(1)
-// 	}
-//
-// 	#[cfg(feature = "runtime-benchmarks")]
-// 	fn set_block_number(_block: Self::BlockNumber) {}
-// }
+parameter_types! {
+	pub const MinVestedTransfer: Balance = 0;
+}
+
+impl pallet_vesting_mangata::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Tokens = orml_tokens::MultiTokenCurrencyAdapter<Test>;
+	type BlockNumberToBalance = sp_runtime::traits::ConvertInto;
+	type MinVestedTransfer = MinVestedTransfer;
+	type WeightInfo = pallet_vesting_mangata::weights::SubstrateWeight<Test>;
+	// `VestingInfo` encode length is 36bytes. 28 schedules gets encoded as 1009 bytes, which is the
+	// highest number of schedules that encodes less than 2^10.
+	const MAX_VESTING_SCHEDULES: u32 = 28;
+}
 
 parameter_types! {
 	pub const TestMaxInitContributors: u32 = 8;
@@ -158,6 +162,7 @@ impl Config for Test {
 	type SignatureNetworkIdentifier = TestSigantureNetworkIdentifier;
 	type VestingBlockNumber = BlockNumber;
 	type VestingBlockProvider = System;
+	type VestingProvider = Vesting;
 	type WeightInfo = ();
 }
 

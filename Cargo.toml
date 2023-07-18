@@ -23,10 +23,12 @@ frame-benchmarking = { git = "https://github.com/mangata-finance/substrate", bra
 ed25519-dalek = { version = "1.0.1", default-features = false, features = ["u64_backend", "alloc"], optional = true }
 sp-trie = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev", default-features = false, optional = true }
 mangata-types = { git = "https://github.com/mangata-finance/substrate", branch = "mangata-dev", default-features = false }
+pallet-vesting-mangata = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev", default-features = false }
 orml-tokens = { default-features = false, git = "https://github.com/mangata-finance/open-runtime-module-library", branch = "mangata-dev" }
 
 [dev-dependencies]
 orml-traits = { default-features = false, version = "0.4.1-dev", git = "https://github.com/mangata-finance/open-runtime-module-library", branch = "mangata-dev" }
+pallet-vesting-mangata = { git = "https://github.com/mangata-finance//substrate", branch = "mangata-dev"}
 
 [features]
 default = ["std"]

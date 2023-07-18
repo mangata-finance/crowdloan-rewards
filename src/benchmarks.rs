@@ -6,6 +6,7 @@ use ed25519_dalek::Signer;
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_support::traits::{Currency, Get, OnFinalize};
 use frame_system::RawOrigin;
+use orml_tokens::MultiTokenCurrencyExtended;
 use parity_scale_codec::Encode;
 use sp_core::{
 	crypto::{AccountId32, UncheckedFrom},
@@ -17,7 +18,6 @@ use sp_runtime::{
 };
 use sp_std::vec;
 use sp_std::vec::Vec;
-use orml_tokens::MultiTokenCurrencyExtended;
 
 /// Default balance amount is minimum contribution
 fn default_balance<T: Config>() -> BalanceOf<T> {
@@ -42,7 +42,11 @@ fn create_funded_user<T: Config>(
 	let user = account(string, n, SEED);
 	let default_balance = default_balance::<T>();
 	let total = default_balance + extra;
-	assert_ok!(T::Tokens::mint(T::NativeTokenId::get().into(), &user, total.into()));
+	assert_ok!(T::Tokens::mint(
+		T::NativeTokenId::get().into(),
+		&user,
+		total.into()
+	));
 	user
 }
 

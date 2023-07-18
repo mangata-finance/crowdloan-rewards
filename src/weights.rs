@@ -80,8 +80,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
 	fn set_crowdloan_allocation() -> Weight {
-		Weight::from_ref_time(147_000)
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_ref_time(147_000).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn claim() -> Weight {
 		Weight::from_ref_time(101_484_000)
@@ -152,7 +151,6 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(4))
 	}
 	fn set_crowdloan_allocation() -> Weight {
-		Weight::from_ref_time(147_000)
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+		Weight::from_ref_time(147_000).saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 }
