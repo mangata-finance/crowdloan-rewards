@@ -202,19 +202,20 @@ pub mod pallet {
 			// The less costly checks will go first
 
 			// The relay account should be unassociated
-			let mut reward_info = UnassociatedContributions::<T>::get(&relay_account)
-				.ok_or(Error::<T>::NoAssociatedClaim)?;
+			let mut reward_info =
+				UnassociatedContributions::<T>::get(CrowdloanId::<T>::get(), &relay_account)
+					.ok_or(Error::<T>::NoAssociatedClaim)?;
 
 			// We ensure the relay chain id wast not yet associated to avoid multi-claiming
 			// We dont need this right now, as it will always be true if the above check is true
 			ensure!(
-				ClaimedRelayChainIds::<T>::get(&relay_account).is_none(),
+				ClaimedRelayChainIds::<T>::get(CrowdloanId::<T>::get(), &relay_account).is_none(),
 				Error::<T>::AlreadyAssociated
 			);
 
 			// For now I prefer that we dont support providing an existing account here
 			ensure!(
-				AccountsPayable::<T>::get(&reward_account).is_none(),
+				AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &reward_account).is_none(),
 				Error::<T>::AlreadyAssociated
 			);
 
@@ -232,13 +233,13 @@ pub mod pallet {
 			)?;
 
 			// Insert on payable
-			AccountsPayable::<T>::insert(&reward_account, &reward_info);
+			AccountsPayable::<T>::insert(CrowdloanId::<T>::get(), &reward_account, &reward_info);
 
 			// Remove from unassociated
-			<UnassociatedContributions<T>>::remove(&relay_account);
+			<UnassociatedContributions<T>>::remove(CrowdloanId::<T>::get(), &relay_account);
 
 			// Insert in mapping
-			ClaimedRelayChainIds::<T>::insert(&relay_account, ());
+			ClaimedRelayChainIds::<T>::insert(CrowdloanId::<T>::get(), &relay_account, ());
 
 			// Emit Event
 			Self::deposit_event(Event::NativeIdentityAssociated(
@@ -269,7 +270,7 @@ pub mod pallet {
 
 			// For now I prefer that we dont support providing an existing account here
 			ensure!(
-				AccountsPayable::<T>::get(&reward_account).is_none(),
+				AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &reward_account).is_none(),
 				Error::<T>::AlreadyAssociated
 			);
 
@@ -283,16 +284,16 @@ pub mod pallet {
 			payload.append(&mut WRAPPED_BYTES_POSTFIX.to_vec());
 
 			// Get the reward info for the account to be changed
-			let reward_info = AccountsPayable::<T>::get(&previous_account)
+			let reward_info = AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &previous_account)
 				.ok_or(Error::<T>::NoAssociatedClaim)?;
 
 			Self::verify_signatures(proofs, reward_info.clone(), payload)?;
 
 			// Remove fromon payable
-			AccountsPayable::<T>::remove(&previous_account);
+			AccountsPayable::<T>::remove(CrowdloanId::<T>::get(), &previous_account);
 
 			// Insert on payable
-			AccountsPayable::<T>::insert(&reward_account, &reward_info);
+			AccountsPayable::<T>::insert(CrowdloanId::<T>::get(), &reward_account, &reward_info);
 
 			// Emit Event
 			Self::deposit_event(Event::RewardAddressUpdated(
@@ -316,8 +317,8 @@ pub mod pallet {
 			ensure!(initialized, Error::<T>::RewardVecNotFullyInitializedYet);
 			// Calculate the veted amount on demand.
 			let crowdloan_id = crowdloan_id.unwrap_or(CrowdloanId::<T>::get());
-			let mut info =
-				AccountsPayable::<T>::get(&payee).ok_or(Error::<T>::NoAssociatedClaim)?;
+			let mut info = AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &payee)
+				.ok_or(Error::<T>::NoAssociatedClaim)?;
 			ensure!(
 				info.claimed_reward < info.total_reward,
 				Error::<T>::RewardsAlreadyClaimed
@@ -347,7 +348,7 @@ pub mod pallet {
 			)?;
 
 			Self::deposit_event(Event::RewardsPaid(payee.clone(), amount));
-			AccountsPayable::<T>::insert(&payee, &info);
+			AccountsPayable::<T>::insert(CrowdloanId::<T>::get(), &payee, &info);
 
 			Ok(Default::default())
 		}
@@ -362,19 +363,20 @@ pub mod pallet {
 			let signer = ensure_signed(origin)?;
 
 			// Calculate the veted amount on demand.
-			let info = AccountsPayable::<T>::get(&signer).ok_or(Error::<T>::NoAssociatedClaim)?;
+			let info = AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &signer)
+				.ok_or(Error::<T>::NoAssociatedClaim)?;
 
 			// For now I prefer that we dont support providing an existing account here
 			ensure!(
-				AccountsPayable::<T>::get(&new_reward_account).is_none(),
+				AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &new_reward_account).is_none(),
 				Error::<T>::AlreadyAssociated
 			);
 
 			// Remove previous rewarded account
-			AccountsPayable::<T>::remove(&signer);
+			AccountsPayable::<T>::remove(CrowdloanId::<T>::get(), &signer);
 
 			// Update new rewarded acount
-			AccountsPayable::<T>::insert(&new_reward_account, &info);
+			AccountsPayable::<T>::insert(CrowdloanId::<T>::get(), &new_reward_account, &info);
 
 			// Emit event
 			Self::deposit_event(Event::RewardAddressUpdated(signer, new_reward_account));
@@ -442,12 +444,17 @@ pub mod pallet {
 			crowdloan_allocation_amount: Balance,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			// ensure!(
-			// 	<Initialized<T>>::get(),
-			// 	Error::<T>::RewardVecAlreadyInitialized
-			// );
+			ensure!(
+				<Initialized<T>>::get() || <CrowdloanId<T>>::get() == 0,
+				Error::<T>::RewardVecAlreadyInitialized
+			);
 
-			<Initialized<T>>::put(false);
+			if <Initialized<T>>::get() {
+				<CrowdloanId<T>>::mutate(|val| *val = *val + 1);
+				<Initialized<T>>::put(false);
+				<InitializedRewardAmount<T>>::put(0);
+			}
+
 			CrowdloanAllocation::<T>::insert(CrowdloanId::<T>::get(), crowdloan_allocation_amount);
 			Ok(Default::default())
 		}
@@ -495,8 +502,9 @@ pub mod pallet {
 			);
 
 			for (relay_account, native_account, reward) in &rewards {
-				if ClaimedRelayChainIds::<T>::get(&relay_account).is_some()
-					|| UnassociatedContributions::<T>::get(&relay_account).is_some()
+				if ClaimedRelayChainIds::<T>::get(CrowdloanId::<T>::get(), &relay_account).is_some()
+					|| UnassociatedContributions::<T>::get(CrowdloanId::<T>::get(), &relay_account)
+						.is_some()
 				{
 					// Dont fail as this is supposed to be called with batch calls and we
 					// dont want to stall the rest of the contributions
@@ -523,7 +531,7 @@ pub mod pallet {
 				}
 
 				if let Some(native_account) = native_account {
-					AccountsPayable::<T>::mutate(native_account, |info| {
+					AccountsPayable::<T>::mutate(CrowdloanId::<T>::get(), native_account, |info| {
 						let result = info.as_mut().map_or(
 							RewardInfo {
 								total_reward: *reward,
@@ -538,9 +546,10 @@ pub mod pallet {
 						);
 						*info = Some(result);
 					});
-					ClaimedRelayChainIds::<T>::insert(relay_account, ());
+					ClaimedRelayChainIds::<T>::insert(CrowdloanId::<T>::get(), relay_account, ());
 				} else {
 					UnassociatedContributions::<T>::insert(
+						CrowdloanId::<T>::get(),
 						relay_account,
 						RewardInfo {
 							total_reward: *reward,
@@ -667,12 +676,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn accounts_payable)]
 	pub type AccountsPayable<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, RewardInfo<T>>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn accounts_payable_by_id)]
-	pub type AccountsPayableById<T: Config> =
-		StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, u32, RewardInfo<T>>;
+		StorageDoubleMap<_, Blake2_128Concat, u32, Blake2_128Concat, T::AccountId, RewardInfo<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn crowdloan_period)]
@@ -682,11 +686,17 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn claimed_relay_chain_ids)]
 	pub type ClaimedRelayChainIds<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::RelayChainAccountId, ()>;
+		StorageDoubleMap<_, Blake2_128Concat, u32, Blake2_128Concat, T::RelayChainAccountId, ()>;
 	#[pallet::storage]
 	#[pallet::getter(fn unassociated_contributions)]
-	pub type UnassociatedContributions<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::RelayChainAccountId, RewardInfo<T>>;
+	pub type UnassociatedContributions<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		u32,
+		Blake2_128Concat,
+		T::RelayChainAccountId,
+		RewardInfo<T>,
+	>;
 	#[pallet::storage]
 	#[pallet::getter(fn initialized)]
 	pub type Initialized<T: Config> = StorageValue<_, bool, ValueQuery, T::Initialized>;
