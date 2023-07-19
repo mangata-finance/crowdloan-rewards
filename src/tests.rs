@@ -1075,3 +1075,59 @@ fn test_claim_rewards_from_consecutive_crowdloans_with_overlapping_schedules() {
 		assert_eq!(transferable_balance(&ALICE, 0), 5000);
 	});
 }
+
+#[test]
+fn change_crowdloan_allocation_before_finalization() {
+	empty().execute_with(|| {
+		let pairs = get_ed25519_pairs(2);
+		let first_crowdloan_period = (1u64, 9u64);
+		let second_crowdloan_period = (5u64, 13u64);
+		let ALICE = 1u64;
+
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 2500u128).unwrap();
+		// We will have all pointint to the same reward account
+		assert_ok!(Crowdloan::initialize_reward_vec(
+			RuntimeOrigin::root(),
+			vec![(pairs[0].public().into(), Some(ALICE), 500u32.into()),],
+		));
+
+		assert_err!(
+			Crowdloan::complete_initialization(
+				RuntimeOrigin::root(),
+				first_crowdloan_period.0,
+				first_crowdloan_period.1
+			),
+			Error::<Test>::RewardsDoNotMatchFund
+		);
+
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 500u128).unwrap();
+
+		assert_ok!(Crowdloan::complete_initialization(
+			RuntimeOrigin::root(),
+			first_crowdloan_period.0,
+			first_crowdloan_period.1
+		));
+		assert!(Initialized::<Test>::get());
+		assert_eq!(Crowdloan::get_crowdloan_id(), 0);
+
+		// schedule following crowdloan
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 1000u128).unwrap();
+		assert_eq!(Crowdloan::get_crowdloan_id(), 1);
+		assert!(!Initialized::<Test>::get());
+		assert_ok!(Crowdloan::initialize_reward_vec(
+			RuntimeOrigin::root(),
+			vec![(pairs[0].public().into(), Some(ALICE), 500u32.into()),],
+		));
+		assert!(!Initialized::<Test>::get());
+
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 500u128).unwrap();
+		assert_ok!(Crowdloan::complete_initialization(
+			RuntimeOrigin::root(),
+			first_crowdloan_period.0,
+			first_crowdloan_period.1
+		));
+
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 1000u128).unwrap();
+		assert_eq!(Crowdloan::get_crowdloan_id(), 2);
+	});
+}

@@ -444,10 +444,10 @@ pub mod pallet {
 			crowdloan_allocation_amount: Balance,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			ensure!(
-				<Initialized<T>>::get() || <CrowdloanId<T>>::get() == 0,
-				Error::<T>::RewardVecAlreadyInitialized
-			);
+			// ensure!(
+			// 	<Initialized<T>>::get() || <CrowdloanId<T>>::get() == 0,
+			// 	Error::<T>::RewardVecAlreadyInitialized
+			// );
 
 			if <Initialized<T>>::get() {
 				<CrowdloanId<T>>::mutate(|val| *val = *val + 1);
