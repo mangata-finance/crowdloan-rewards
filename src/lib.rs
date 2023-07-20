@@ -166,14 +166,7 @@ pub mod pallet {
 
 	// This hook is in charge of initializing the vesting height at the first block of the parachain
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		// fn on_finalize(n: <T as frame_system::Config>::BlockNumber) {
-		// 	// In the first block of the parachain we need to introduce the vesting block related info
-		// 	if n == 1u32.into() {
-		// 		<InitVestingBlock<T>>::put(T::VestingBlockProvider::current_block_number());
-		// 	}
-		// }
-	}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -304,7 +297,11 @@ pub mod pallet {
 			Ok(Default::default())
 		}
 
-		/// Collect whatever portion of your reward are currently vested.
+		/// Collect rewards from particular crowdloan.
+		/// If crowdloan_id is not set current [`CrowdloanId`] id will be used.
+		/// Caller is instantly rewarded with [`InitializationPayment`] % of available rewards,
+		/// remaining funds are locked according to schedule(using `pallet_mangata_vesting` configured
+		/// by [`Pallet::<T>::complete_initialization`] call.
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::claim())]
 		pub fn claim(
@@ -428,15 +425,16 @@ pub mod pallet {
 				(lease_start_block, lease_ending_block),
 			);
 			<Initialized<T>>::put(true);
-			// <CrowdloanId<T>>::mutate(|val| *val=*val + 1);
 
 			Ok(Default::default())
 		}
 
 		/// Initialize the reward distribution storage. It shortcuts whenever an error is found
 
-		/// This does not enforce any checks other than making sure we dont go over funds
-		/// complete_initialization should perform any additional
+		/// Sets crowdloan allocation for:
+		/// - current round of crowdloan - if it has not been completed (`[Pallet::<T>::complete_initialization]`)
+		/// - following round of crowdloan rewards payment if previous one has been already
+		/// completed
 		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::set_crowdloan_allocation())]
 		pub fn set_crowdloan_allocation(
@@ -444,10 +442,6 @@ pub mod pallet {
 			crowdloan_allocation_amount: Balance,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			// ensure!(
-			// 	<Initialized<T>>::get() || <CrowdloanId<T>>::get() == 0,
-			// 	Error::<T>::RewardVecAlreadyInitialized
-			// );
 
 			if <Initialized<T>>::get() {
 				<CrowdloanId<T>>::mutate(|val| *val = *val + 1);
@@ -669,6 +663,8 @@ pub mod pallet {
 	pub type CrowdloanAllocation<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, Balance, ValueQuery>;
 
+	/// Id of current crowdloan rewards distribution, automatically incremented by
+	/// [`Pallet::<T>::complete_initialization`]
 	#[pallet::storage]
 	#[pallet::getter(fn get_crowdloan_id)]
 	pub type CrowdloanId<T: Config> = StorageValue<_, u32, ValueQuery>;
