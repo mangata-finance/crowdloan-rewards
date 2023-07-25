@@ -77,17 +77,16 @@ pub mod pallet {
 
 	use crate::weights::WeightInfo;
 	use frame_support::pallet_prelude::*;
-	use frame_support::traits::tokens::currency::{MultiTokenCurrency};
+	use frame_support::traits::tokens::currency::MultiTokenCurrency;
 	use frame_system::pallet_prelude::*;
 	use mangata_types::{Balance, TokenId};
-	use orml_tokens::{MultiTokenCurrencyExtended};
+	use orml_tokens::MultiTokenCurrencyExtended;
+	use pallet_vesting_mangata::MultiTokenVestingLocks;
 	use sp_core::crypto::AccountId32;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Verify, Zero};
 	use sp_runtime::{DispatchErrorWithPostInfo, MultiSignature, Perbill};
 	use sp_std::collections::btree_map::BTreeMap;
 	use sp_std::vec;
-	use sp_std::vec::Vec;
-	pub use sp_std::convert::TryInto;
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -145,8 +144,11 @@ pub mod pallet {
 		type VestingBlockNumber: AtLeast32BitUnsigned + Parameter + Default + Into<Balance>;
 
 		/// The notion of time that will be used for vesting. Probably
-		/// either the relay chain or sovereign chain block number.
+		/// either the relay chain or sovereignchain block number.
 		type VestingBlockProvider: BlockNumberProvider<BlockNumber = Self::VestingBlockNumber>;
+
+		/// Vesting provider for paying out vested rewards
+		type VestingProvider: MultiTokenVestingLocks<Self::AccountId, Self::BlockNumber>;
 
 		type WeightInfo: WeightInfo;
 	}
@@ -164,14 +166,7 @@ pub mod pallet {
 
 	// This hook is in charge of initializing the vesting height at the first block of the parachain
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_finalize(n: <T as frame_system::Config>::BlockNumber) {
-			// In the first block of the parachain we need to introduce the vesting block related info
-			if n == 1u32.into() {
-				<InitVestingBlock<T>>::put(T::VestingBlockProvider::current_block_number());
-			}
-		}
-	}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -200,19 +195,20 @@ pub mod pallet {
 			// The less costly checks will go first
 
 			// The relay account should be unassociated
-			let mut reward_info = UnassociatedContributions::<T>::get(&relay_account)
-				.ok_or(Error::<T>::NoAssociatedClaim)?;
+			let mut reward_info =
+				UnassociatedContributions::<T>::get(CrowdloanId::<T>::get(), &relay_account)
+					.ok_or(Error::<T>::NoAssociatedClaim)?;
 
 			// We ensure the relay chain id wast not yet associated to avoid multi-claiming
 			// We dont need this right now, as it will always be true if the above check is true
 			ensure!(
-				ClaimedRelayChainIds::<T>::get(&relay_account).is_none(),
+				ClaimedRelayChainIds::<T>::get(CrowdloanId::<T>::get(), &relay_account).is_none(),
 				Error::<T>::AlreadyAssociated
 			);
 
 			// For now I prefer that we dont support providing an existing account here
 			ensure!(
-				AccountsPayable::<T>::get(&reward_account).is_none(),
+				AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &reward_account).is_none(),
 				Error::<T>::AlreadyAssociated
 			);
 
@@ -229,36 +225,14 @@ pub mod pallet {
 				payload,
 			)?;
 
-			// Make the first payment
-			let first_payment = T::InitializationPayment::get() * reward_info.total_reward;
-
-			let mint_result = T::Tokens::mint(
-				T::NativeTokenId::get().into(),
-				&reward_account,
-				first_payment.into(),
-			);
-			if mint_result.is_err() {
-				Self::deposit_event(Event::InitialPaymentMade(
-					reward_account.clone(),
-					Balance::zero(),
-				));
-			} else {
-				Self::deposit_event(Event::InitialPaymentMade(
-					reward_account.clone(),
-					first_payment,
-				));
-			}
-
-			reward_info.claimed_reward = first_payment;
-
 			// Insert on payable
-			AccountsPayable::<T>::insert(&reward_account, &reward_info);
+			AccountsPayable::<T>::insert(CrowdloanId::<T>::get(), &reward_account, &reward_info);
 
 			// Remove from unassociated
-			<UnassociatedContributions<T>>::remove(&relay_account);
+			<UnassociatedContributions<T>>::remove(CrowdloanId::<T>::get(), &relay_account);
 
 			// Insert in mapping
-			ClaimedRelayChainIds::<T>::insert(&relay_account, ());
+			ClaimedRelayChainIds::<T>::insert(CrowdloanId::<T>::get(), &relay_account, ());
 
 			// Emit Event
 			Self::deposit_event(Event::NativeIdentityAssociated(
@@ -289,7 +263,7 @@ pub mod pallet {
 
 			// For now I prefer that we dont support providing an existing account here
 			ensure!(
-				AccountsPayable::<T>::get(&reward_account).is_none(),
+				AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &reward_account).is_none(),
 				Error::<T>::AlreadyAssociated
 			);
 
@@ -303,16 +277,16 @@ pub mod pallet {
 			payload.append(&mut WRAPPED_BYTES_POSTFIX.to_vec());
 
 			// Get the reward info for the account to be changed
-			let reward_info = AccountsPayable::<T>::get(&previous_account)
+			let reward_info = AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &previous_account)
 				.ok_or(Error::<T>::NoAssociatedClaim)?;
 
 			Self::verify_signatures(proofs, reward_info.clone(), payload)?;
 
 			// Remove fromon payable
-			AccountsPayable::<T>::remove(&previous_account);
+			AccountsPayable::<T>::remove(CrowdloanId::<T>::get(), &previous_account);
 
 			// Insert on payable
-			AccountsPayable::<T>::insert(&reward_account, &reward_info);
+			AccountsPayable::<T>::insert(CrowdloanId::<T>::get(), &reward_account, &reward_info);
 
 			// Emit Event
 			Self::deposit_event(Event::RewardAddressUpdated(
@@ -323,16 +297,25 @@ pub mod pallet {
 			Ok(Default::default())
 		}
 
-		/// Collect whatever portion of your reward are currently vested.
+		/// Collect rewards from particular crowdloan.
+		/// If crowdloan_id is not set current [`CrowdloanId`] id will be used.
+		/// Caller is instantly rewarded with [`InitializationPayment`] % of available rewards,
+		/// remaining funds are locked according to schedule(using `pallet_mangata_vesting` configured
+		/// by [`Pallet::<T>::complete_initialization`] call.
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::claim())]
-		pub fn claim(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+		pub fn claim(
+			origin: OriginFor<T>,
+			crowdloan_id: Option<u32>,
+		) -> DispatchResultWithPostInfo {
 			let payee = ensure_signed(origin)?;
+
 			let initialized = <Initialized<T>>::get();
 			ensure!(initialized, Error::<T>::RewardVecNotFullyInitializedYet);
 			// Calculate the veted amount on demand.
-			let mut info =
-				AccountsPayable::<T>::get(&payee).ok_or(Error::<T>::NoAssociatedClaim)?;
+			let crowdloan_id = crowdloan_id.unwrap_or(CrowdloanId::<T>::get());
+			let mut info = AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &payee)
+				.ok_or(Error::<T>::NoAssociatedClaim)?;
 			ensure!(
 				info.claimed_reward < info.total_reward,
 				Error::<T>::RewardsAlreadyClaimed
@@ -341,51 +324,28 @@ pub mod pallet {
 			// Get the current block used for vesting purposes
 			let now = T::VestingBlockProvider::current_block_number();
 
-			// Substract the first payment from the vested amount
-			let first_paid = T::InitializationPayment::get() * info.total_reward;
-
-			// To calculate how much could the user have claimed already
-			let payable_period = now.clone().saturating_sub(<InitVestingBlock<T>>::get());
-
 			// How much should the contributor have already claimed by this block?
 			// By multiplying first we allow the conversion to integer done with the biggest number
-			let period = EndVestingBlock::<T>::get() - InitVestingBlock::<T>::get();
-			let should_have_claimed = if period == 0u32.into() {
-				// Pallet is configured with a zero vesting period.
-				info.total_reward - first_paid
-			} else {
-				(info.total_reward - first_paid).saturating_mul(payable_period.into())
-					/ period.into()
-			};
+			let amount = info
+				.total_reward
+				.checked_sub(info.claimed_reward)
+				.ok_or(Error::<T>::MathOverflow)?;
+			info.claimed_reward += amount;
 
-			// If the period is bigger than whats missing to pay, then return whats missing to pay
-			let payable_amount = if should_have_claimed >= (info.total_reward - first_paid) {
-				info.total_reward.saturating_sub(info.claimed_reward)
-			} else {
-				should_have_claimed + first_paid - info.claimed_reward
-			};
+			T::Tokens::mint(T::NativeTokenId::get().into(), &payee, amount.into())?;
 
-			info.claimed_reward = info.claimed_reward.saturating_add(payable_amount);
+			let period = CrowdloanPeriod::<T>::get(crowdloan_id).ok_or(Error::<T>::PeriodNotSet)?;
 
-			let mint_result = T::Tokens::mint(
-				T::NativeTokenId::get().into(),
+			T::VestingProvider::lock_tokens(
 				&payee,
-				payable_amount.into(),
-			);
-			if mint_result.is_err() {
-				if now < EndVestingBlock::<T>::get() {
-					return Err(DispatchErrorWithPostInfo::from(
-						Error::<T>::ClaimingLessThanED,
-					));
-				}
-				// Emit event
-				Self::deposit_event(Event::RewardsPaid(payee.clone(), Balance::zero()));
-				AccountsPayable::<T>::insert(&payee, &info);
-			} else {
-				// Emit event
-				Self::deposit_event(Event::RewardsPaid(payee.clone(), payable_amount));
-				AccountsPayable::<T>::insert(&payee, &info);
-			}
+				T::NativeTokenId::get().into(),
+				(amount - T::InitializationPayment::get() * amount).into(),
+				Some((period.0.into() as u32).into()),
+				period.1.into().into(),
+			)?;
+
+			Self::deposit_event(Event::RewardsPaid(payee.clone(), amount));
+			AccountsPayable::<T>::insert(CrowdloanId::<T>::get(), &payee, &info);
 
 			Ok(Default::default())
 		}
@@ -400,19 +360,20 @@ pub mod pallet {
 			let signer = ensure_signed(origin)?;
 
 			// Calculate the veted amount on demand.
-			let info = AccountsPayable::<T>::get(&signer).ok_or(Error::<T>::NoAssociatedClaim)?;
+			let info = AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &signer)
+				.ok_or(Error::<T>::NoAssociatedClaim)?;
 
 			// For now I prefer that we dont support providing an existing account here
 			ensure!(
-				AccountsPayable::<T>::get(&new_reward_account).is_none(),
+				AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &new_reward_account).is_none(),
 				Error::<T>::AlreadyAssociated
 			);
 
 			// Remove previous rewarded account
-			AccountsPayable::<T>::remove(&signer);
+			AccountsPayable::<T>::remove(CrowdloanId::<T>::get(), &signer);
 
 			// Update new rewarded acount
-			AccountsPayable::<T>::insert(&new_reward_account, &info);
+			AccountsPayable::<T>::insert(CrowdloanId::<T>::get(), &new_reward_account, &info);
 
 			// Emit event
 			Self::deposit_event(Event::RewardAddressUpdated(signer, new_reward_account));
@@ -428,6 +389,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::complete_initialization())]
 		pub fn complete_initialization(
 			origin: OriginFor<T>,
+			lease_start_block: T::VestingBlockNumber,
 			lease_ending_block: T::VestingBlockNumber,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
@@ -443,14 +405,14 @@ pub mod pallet {
 			// This ensures the end vesting block (when all funds are fully vested)
 			// is bigger than the init vesting block
 			ensure!(
-				lease_ending_block > InitVestingBlock::<T>::get(),
+				lease_ending_block > lease_start_block,
 				Error::<T>::VestingPeriodNonValid
 			);
 
 			let total_initialized_rewards = InitializedRewardAmount::<T>::get();
 
-			let reward_difference =
-				Pallet::<T>::get_crowdloan_allocation().saturating_sub(total_initialized_rewards);
+			let reward_difference = Pallet::<T>::get_crowdloan_allocation(CrowdloanId::<T>::get())
+				.saturating_sub(total_initialized_rewards);
 
 			// Ensure the difference is not bigger than the total number of contributors
 			ensure!(
@@ -458,8 +420,10 @@ pub mod pallet {
 				Error::<T>::RewardsDoNotMatchFund
 			);
 
-			EndVestingBlock::<T>::put(lease_ending_block);
-
+			<CrowdloanPeriod<T>>::insert(
+				CrowdloanId::<T>::get(),
+				(lease_start_block, lease_ending_block),
+			);
 			<Initialized<T>>::put(true);
 
 			Ok(Default::default())
@@ -467,8 +431,10 @@ pub mod pallet {
 
 		/// Initialize the reward distribution storage. It shortcuts whenever an error is found
 
-		/// This does not enforce any checks other than making sure we dont go over funds
-		/// complete_initialization should perform any additional
+		/// Sets crowdloan allocation for:
+		/// - current round of crowdloan - if it has not been completed (`[Pallet::<T>::complete_initialization]`)
+		/// - following round of crowdloan rewards payment if previous one has been already
+		/// completed
 		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::set_crowdloan_allocation())]
 		pub fn set_crowdloan_allocation(
@@ -476,7 +442,14 @@ pub mod pallet {
 			crowdloan_allocation_amount: Balance,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			CrowdloanAllocation::<T>::put(crowdloan_allocation_amount);
+
+			if <Initialized<T>>::get() {
+				<CrowdloanId<T>>::mutate(|val| *val = *val + 1);
+				<Initialized<T>>::put(false);
+				<InitializedRewardAmount<T>>::put(0);
+			}
+
+			CrowdloanAllocation::<T>::insert(CrowdloanId::<T>::get(), crowdloan_allocation_amount);
 			Ok(Default::default())
 		}
 
@@ -511,17 +484,21 @@ pub mod pallet {
 
 			let incoming_rewards: Balance = rewards
 				.iter()
-				.fold(Balance::zero(), |acc: Balance, (_, _, reward)| acc + *reward);
+				.fold(Balance::zero(), |acc: Balance, (_, _, reward)| {
+					acc + *reward
+				});
 
 			// Ensure we dont go over funds
 			ensure!(
-				total_initialized_rewards + incoming_rewards <= Pallet::<T>::get_crowdloan_allocation(),
+				total_initialized_rewards + incoming_rewards
+					<= Pallet::<T>::get_crowdloan_allocation(CrowdloanId::<T>::get()),
 				Error::<T>::BatchBeyondFundPot
 			);
 
 			for (relay_account, native_account, reward) in &rewards {
-				if ClaimedRelayChainIds::<T>::get(&relay_account).is_some()
-					|| UnassociatedContributions::<T>::get(&relay_account).is_some()
+				if ClaimedRelayChainIds::<T>::get(CrowdloanId::<T>::get(), &relay_account).is_some()
+					|| UnassociatedContributions::<T>::get(CrowdloanId::<T>::get(), &relay_account)
+						.is_some()
 				{
 					// Dont fail as this is supposed to be called with batch calls and we
 					// dont want to stall the rest of the contributions
@@ -532,6 +509,9 @@ pub mod pallet {
 					));
 					continue;
 				}
+
+				total_initialized_rewards += *reward;
+				total_contributors += 1;
 
 				if *reward < T::MinimumReward::get() {
 					// Don't fail as this is supposed to be called with batch calls and we
@@ -544,70 +524,33 @@ pub mod pallet {
 					continue;
 				}
 
-				// If we have a native_account, we make the payment
-				let initial_payment = if let Some(native_account) = native_account {
-					let first_payment = T::InitializationPayment::get() * (*reward);
-
-					// Don't fail as this is supposed to be called with batch calls and we
-					// dont want to stall the rest of the contributions
-					// This can fail due to existential deposit check during minting
-					let mint_result = T::Tokens::mint(
-						T::NativeTokenId::get().into(),
-						&native_account,
-						first_payment.into(),
-					);
-					if mint_result.is_err() {
-						Self::deposit_event(Event::InitialPaymentMade(
-							native_account.clone(),
-							Balance::zero(),
-						));
-					} else {
-						Self::deposit_event(Event::InitialPaymentMade(
-							native_account.clone(),
-							first_payment,
-						));
-					}
-					first_payment
-				} else {
-					0u32.into()
-				};
-
-				// Calculate the reward info to store after the initial payment has been made.
-				let mut reward_info = RewardInfo {
-					total_reward: *reward,
-					claimed_reward: initial_payment,
-					contributed_relay_addresses: vec![relay_account.clone()],
-				};
-
-				total_initialized_rewards += *reward;
-				total_contributors += 1;
-
 				if let Some(native_account) = native_account {
-					if let Some(mut inserted_reward_info) =
-						AccountsPayable::<T>::get(native_account)
-					{
-						inserted_reward_info
-							.contributed_relay_addresses
-							.append(&mut reward_info.contributed_relay_addresses);
-						// the native account has already some rewards in, we add the new ones
-						AccountsPayable::<T>::insert(
-							native_account,
+					AccountsPayable::<T>::mutate(CrowdloanId::<T>::get(), native_account, |info| {
+						let result = info.as_mut().map_or(
 							RewardInfo {
-								total_reward: inserted_reward_info.total_reward
-									+ reward_info.total_reward,
-								claimed_reward: inserted_reward_info.claimed_reward
-									+ reward_info.claimed_reward,
-								contributed_relay_addresses: inserted_reward_info
-									.contributed_relay_addresses,
+								total_reward: *reward,
+								claimed_reward: 0,
+								contributed_relay_addresses: vec![relay_account.clone()],
+							},
+							|i| {
+								i.total_reward += *reward;
+								i.contributed_relay_addresses.push(relay_account.clone());
+								i.clone()
 							},
 						);
-					} else {
-						// First reward association
-						AccountsPayable::<T>::insert(native_account, reward_info);
-					}
-					ClaimedRelayChainIds::<T>::insert(relay_account, ());
+						*info = Some(result);
+					});
+					ClaimedRelayChainIds::<T>::insert(CrowdloanId::<T>::get(), relay_account, ());
 				} else {
-					UnassociatedContributions::<T>::insert(relay_account, reward_info);
+					UnassociatedContributions::<T>::insert(
+						CrowdloanId::<T>::get(),
+						relay_account,
+						RewardInfo {
+							total_reward: *reward,
+							claimed_reward: 0,
+							contributed_relay_addresses: vec![relay_account.clone()],
+						},
+					);
 				}
 			}
 			InitializedRewardAmount::<T>::put(total_initialized_rewards);
@@ -709,24 +652,47 @@ pub mod pallet {
 		/// This is expected when claiming less than existential desposit on a non-existent account
 		/// Please consider waiting until the EndVestingBlock to attempt this
 		ClaimingLessThanED,
+		/// Math overflow
+		MathOverflow,
+		/// Period not set
+		PeriodNotSet,
 	}
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_crowdloan_allocation)]
-	pub type CrowdloanAllocation<T: Config> = StorageValue<_, Balance, ValueQuery>;
+	pub type CrowdloanAllocation<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, Balance, ValueQuery>;
+
+	/// Id of current crowdloan rewards distribution, automatically incremented by
+	/// [`Pallet::<T>::complete_initialization`]
+	#[pallet::storage]
+	#[pallet::getter(fn get_crowdloan_id)]
+	pub type CrowdloanId<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn accounts_payable)]
 	pub type AccountsPayable<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, RewardInfo<T>>;
+		StorageDoubleMap<_, Blake2_128Concat, u32, Blake2_128Concat, T::AccountId, RewardInfo<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn crowdloan_period)]
+	pub type CrowdloanPeriod<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, (T::VestingBlockNumber, T::VestingBlockNumber)>;
+
 	#[pallet::storage]
 	#[pallet::getter(fn claimed_relay_chain_ids)]
 	pub type ClaimedRelayChainIds<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::RelayChainAccountId, ()>;
+		StorageDoubleMap<_, Blake2_128Concat, u32, Blake2_128Concat, T::RelayChainAccountId, ()>;
 	#[pallet::storage]
 	#[pallet::getter(fn unassociated_contributions)]
-	pub type UnassociatedContributions<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::RelayChainAccountId, RewardInfo<T>>;
+	pub type UnassociatedContributions<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		u32,
+		Blake2_128Concat,
+		T::RelayChainAccountId,
+		RewardInfo<T>,
+	>;
 	#[pallet::storage]
 	#[pallet::getter(fn initialized)]
 	pub type Initialized<T: Config> = StorageValue<_, bool, ValueQuery, T::Initialized>;

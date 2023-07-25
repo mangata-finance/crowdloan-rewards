@@ -1,37 +1,52 @@
 #![cfg(feature = "runtime-benchmarks")]
 
-use crate::{Call, Config, Pallet, WRAPPED_BYTES_PREFIX, WRAPPED_BYTES_POSTFIX};
-use mangata_types::{Balance};
+use crate::Config;
+use crate::{BalanceOf, Call, Pallet, WRAPPED_BYTES_POSTFIX, WRAPPED_BYTES_PREFIX};
 use ed25519_dalek::Signer;
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
-use frame_support::{assert_ok, traits::{Get, OnFinalize}};
+use frame_support::traits::{Currency, Get, OnFinalize};
 use frame_system::RawOrigin;
+use orml_tokens::MultiTokenCurrencyExtended;
 use parity_scale_codec::Encode;
 use sp_core::{
 	crypto::{AccountId32, UncheckedFrom},
 	ed25519,
 };
-use sp_runtime::{traits::{One, BlockNumberProvider, Zero}, MultiSignature};
+use sp_runtime::{
+	traits::{BlockNumberProvider, One},
+	MultiSignature,
+};
 use sp_std::vec;
 use sp_std::vec::Vec;
-use orml_tokens::MultiTokenCurrencyExtended;
 
 /// Default balance amount is minimum contribution
-fn default_balance<T: Config>() -> Balance {
-	<<T as Config>::MinimumReward as Get<Balance>>::get()
+fn default_balance<T: Config>() -> BalanceOf<T> {
+	T::MinimumReward::get()
+}
+
+/// Create a funded user.
+fn fund_specific_account<T: Config>(pallet_account: T::AccountId, extra: BalanceOf<T>) {
+	let default_balance = default_balance::<T>();
+	let total = default_balance + extra;
+	T::RewardCurrency::make_free_balance_be(&pallet_account, total);
+	T::RewardCurrency::issue(total);
 }
 
 /// Create a funded user.
 fn create_funded_user<T: Config>(
 	string: &'static str,
 	n: u32,
-	extra: Balance,
+	extra: BalanceOf<T>,
 ) -> T::AccountId {
 	const SEED: u32 = 0;
 	let user = account(string, n, SEED);
 	let default_balance = default_balance::<T>();
 	let total = default_balance + extra;
-	assert_ok!(T::Tokens::mint(T::NativeTokenId::get().into(), &user, total.into()));
+	assert_ok!(T::Tokens::mint(
+		T::NativeTokenId::get().into(),
+		&user,
+		total.into()
+	));
 	user
 }
 
@@ -107,8 +122,8 @@ fn max_batch_contributors<T: Config>() -> u32 {
 // This is our current number of contributors
 const MAX_ALREADY_USERS: u32 = 5799;
 const SEED: u32 = 999999999;
-benchmarks! {
 
+benchmarks! {
 	set_crowdloan_allocation{
 		assert!(Pallet::<T>::get_crowdloan_allocation().is_zero());
 
@@ -116,7 +131,6 @@ benchmarks! {
 	verify {
 		assert_eq!(Pallet::<T>::get_crowdloan_allocation(), 10000u128);
 	}
-
 	initialize_reward_vec {
 		let x in 1..max_batch_contributors::<T>();
 		let y = MAX_ALREADY_USERS;
@@ -188,8 +202,6 @@ benchmarks! {
 
 		// Create 4th relay block, by now the user should have vested some amount
 		T::VestingBlockProvider::set_block_number(4u32.into());
-
-
 	}:  _(RawOrigin::Signed(caller.clone()))
 	verify {
 		assert!(Pallet::<T>::accounts_payable(&caller).unwrap().claimed_reward > claimed_reward);
@@ -235,7 +247,7 @@ benchmarks! {
 	associate_native_identity {
 		// Fund pallet account
 		let total_pot = 100u32;
-		assert_ok!(Pallet::<T>::set_crowdloan_allocation(RawOrigin::Root.into(), total_pot.into()));
+		fund_specific_account::<T>(Pallet::<T>::account_id(), total_pot.into());
 
 		// The caller that will associate the account
 		let caller: T::AccountId = create_funded_user::<T>("user", SEED, 100u32.into());
@@ -251,7 +263,7 @@ benchmarks! {
 
 		// We verified there is no dependency of the number of contributors already inserted in associate_native_identity
 		// Create 1 contributor
-		let contributors: Vec<(T::RelayChainAccountId, Option<T::AccountId>, Balance)> =
+		let contributors: Vec<(T::RelayChainAccountId, Option<T::AccountId>, BalanceOf<T>)> =
 		vec![(relay_account.clone().into(), None, total_pot.into())];
 
 		// Insert them

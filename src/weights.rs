@@ -78,8 +78,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	fn set_crowdloan_allocation() -> Weight {
-		Weight::from_parts(147_000, 0)
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_parts(147_000, 0).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn claim() -> Weight {
 		Weight::from_parts(101_484_000, 0)
@@ -108,7 +107,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn initialize_reward_vec(x: u32) -> Weight {
-		Weight::from_parts(143_109_000, 0)
+		Weight::from_ref_time(143_109_000)
 			// Standard Error: 21_000
 			.saturating_add((Weight::from_parts(72_298_000, 0)).saturating_mul(x as u64))
 			.saturating_add(RocksDbWeight::get().reads(8 as u64))
@@ -117,8 +116,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes((3 as u64).saturating_mul(x as u64)))
 	}
 	fn set_crowdloan_allocation() -> Weight {
-		Weight::from_parts(147_000, 0)
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+		Weight::from_parts(147_000, 0).saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	fn complete_initialization() -> Weight {
 		Weight::from_parts(51_047_000, 0)
