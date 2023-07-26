@@ -357,24 +357,27 @@ pub mod pallet {
 		pub fn update_reward_address(
 			origin: OriginFor<T>,
 			new_reward_account: T::AccountId,
+			crowdloan_id: Option<u32>,
 		) -> DispatchResultWithPostInfo {
 			let signer = ensure_signed(origin)?;
 
+			let crowdloan_id = crowdloan_id.unwrap_or(CrowdloanId::<T>::get());
+
 			// Calculate the veted amount on demand.
-			let info = AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &signer)
+			let info = AccountsPayable::<T>::get(crowdloan_id, &signer)
 				.ok_or(Error::<T>::NoAssociatedClaim)?;
 
 			// For now I prefer that we dont support providing an existing account here
 			ensure!(
-				AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &new_reward_account).is_none(),
+				AccountsPayable::<T>::get(crowdloan_id, &new_reward_account).is_none(),
 				Error::<T>::AlreadyAssociated
 			);
 
 			// Remove previous rewarded account
-			AccountsPayable::<T>::remove(CrowdloanId::<T>::get(), &signer);
+			AccountsPayable::<T>::remove(crowdloan_id, &signer);
 
 			// Update new rewarded acount
-			AccountsPayable::<T>::insert(CrowdloanId::<T>::get(), &new_reward_account, &info);
+			AccountsPayable::<T>::insert(crowdloan_id, &new_reward_account, &info);
 
 			// Emit event
 			Self::deposit_event(Event::RewardAddressUpdated(signer, new_reward_account));
@@ -410,14 +413,15 @@ pub mod pallet {
 				Error::<T>::VestingPeriodNonValid
 			);
 
-			let total_initialized_rewards = InitializedRewardAmount::<T>::get();
+			let total_initialized_rewards =
+				InitializedRewardAmount::<T>::get(CrowdloanId::<T>::get());
 
 			let reward_difference = Pallet::<T>::get_crowdloan_allocation(CrowdloanId::<T>::get())
 				.saturating_sub(total_initialized_rewards);
 
 			// Ensure the difference is not bigger than the total number of contributors
 			ensure!(
-				reward_difference < TotalContributors::<T>::get().into(),
+				reward_difference < TotalContributors::<T>::get(CrowdloanId::<T>::get()).into(),
 				Error::<T>::RewardsDoNotMatchFund
 			);
 
@@ -447,8 +451,14 @@ pub mod pallet {
 			if <Initialized<T>>::get() {
 				<CrowdloanId<T>>::mutate(|val| *val = *val + 1);
 				<Initialized<T>>::put(false);
-				<InitializedRewardAmount<T>>::put(0);
+				<InitializedRewardAmount<T>>::insert(CrowdloanId::<T>::get(), 0);
 			}
+
+			ensure!(
+				crowdloan_allocation_amount
+					>= InitializedRewardAmount::<T>::get(CrowdloanId::<T>::get()),
+				Error::<T>::AllocationDoesNotMatch
+			);
 
 			CrowdloanAllocation::<T>::insert(CrowdloanId::<T>::get(), crowdloan_allocation_amount);
 			Ok(Default::default())
@@ -478,10 +488,11 @@ pub mod pallet {
 			);
 
 			// What is the amount initialized so far?
-			let mut total_initialized_rewards = InitializedRewardAmount::<T>::get();
+			let mut total_initialized_rewards =
+				InitializedRewardAmount::<T>::get(CrowdloanId::<T>::get());
 
 			// Total number of contributors
-			let mut total_contributors = TotalContributors::<T>::get();
+			let mut total_contributors = TotalContributors::<T>::get(CrowdloanId::<T>::get());
 
 			let incoming_rewards: Balance = rewards
 				.iter()
@@ -554,14 +565,20 @@ pub mod pallet {
 					);
 				}
 			}
-			InitializedRewardAmount::<T>::put(total_initialized_rewards);
-			TotalContributors::<T>::put(total_contributors);
+			InitializedRewardAmount::<T>::insert(
+				CrowdloanId::<T>::get(),
+				total_initialized_rewards,
+			);
+			TotalContributors::<T>::insert(CrowdloanId::<T>::get(), total_contributors);
 
 			Ok(Default::default())
 		}
 	}
 
 	impl<T: Config> Pallet<T> {
+		pub(crate) fn total_contributors() -> u32 {
+			TotalContributors::<T>::get(CrowdloanId::<T>::get())
+		}
 		/// Verify a set of signatures made with relay chain accounts
 		/// We are verifying all the signatures, and then counting
 		/// We could do something more efficient like count as we verify
@@ -657,6 +674,8 @@ pub mod pallet {
 		MathOverflow,
 		/// Period not set
 		PeriodNotSet,
+		/// Trying to introduce a batch that goes beyond the limits of the funds
+		AllocationDoesNotMatch,
 	}
 
 	#[pallet::storage]
@@ -714,12 +733,13 @@ pub mod pallet {
 	#[pallet::getter(fn init_reward_amount)]
 	/// Total initialized amount so far. We store this to make pallet funds == contributors reward
 	/// check easier and more efficient
-	type InitializedRewardAmount<T: Config> = StorageValue<_, Balance, ValueQuery>;
+	type InitializedRewardAmount<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, Balance, ValueQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn total_contributors)]
+	#[pallet::getter(fn total_contributors_by_id)]
 	/// Total number of contributors to aid hinting benchmarking
-	type TotalContributors<T: Config> = StorageValue<_, u32, ValueQuery>;
+	type TotalContributors<T: Config> = StorageMap<_, Blake2_128Concat, u32, u32, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(fn deposit_event)]
