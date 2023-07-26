@@ -49,6 +49,7 @@ std = [
     "orml-tokens/std",
 ]
 runtime-benchmarks = [
+    "sp-runtime/runtime-benchmarks",
     "frame-benchmarking",
     "sp-trie",
     "ed25519-dalek",

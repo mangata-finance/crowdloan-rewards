@@ -21,7 +21,7 @@ use frame_support::{
 	traits::{Contains, GenesisBuild, Nothing, OnFinalize, OnInitialize},
 	PalletId,
 };
-use frame_system::EnsureSigned;
+use frame_system::{EnsureRoot, EnsureSigned};
 use mangata_types::{Amount, Balance, TokenId};
 use orml_traits::parameter_type_with_key;
 use sp_core::{ed25519, Pair, H256};
@@ -156,9 +156,9 @@ impl Config for Test {
 	type RelayChainAccountId = [u8; 32];
 	type RewardAddressRelayVoteThreshold = TestRewardAddressRelayVoteThreshold;
 	// The origin that is allowed to associate the reward
-	type RewardAddressAssociateOrigin = EnsureSigned<Self::AccountId>;
+	type RewardAddressAssociateOrigin = EnsureRoot<Self::AccountId>;
 	// The origin that is allowed to change the reward
-	type RewardAddressChangeOrigin = EnsureSigned<Self::AccountId>;
+	type RewardAddressChangeOrigin = EnsureRoot<Self::AccountId>;
 	type SignatureNetworkIdentifier = TestSigantureNetworkIdentifier;
 	type VestingBlockNumber = BlockNumber;
 	type VestingBlockProvider = System;
