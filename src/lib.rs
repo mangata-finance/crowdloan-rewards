@@ -70,7 +70,18 @@ pub(crate) mod mock;
 mod tests;
 pub mod weights;
 
+mod migration;
 pub use weights::WeightInfo;
+
+#[macro_export]
+macro_rules! log {
+	($level:tt, $patter:expr $(, $values:expr)* $(,)?) => {
+		log::$level!(
+			target: "crowdloan",
+			concat!("[{:?}] 💸 ", $patter), <frame_system::Pallet<T>>::block_number() $(, $values)*
+		)
+	};
+}
 
 #[pallet]
 pub mod pallet {
@@ -89,8 +100,12 @@ pub mod pallet {
 	use sp_std::vec;
 	use sp_std::vec::Vec;
 
+
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	// The crowdloan rewards pallet
 	pub struct Pallet<T>(PhantomData<T>);
 
@@ -167,7 +182,22 @@ pub mod pallet {
 
 	// This hook is in charge of initializing the vesting height at the first block of the parachain
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
+			Ok(Default::default())
+		}
+
+		fn on_runtime_upgrade() -> Weight {
+			Weight::zero()
+		}
+
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade(_state: Vec<u8>) -> Result<(), TryRuntimeError> {
+			Ok(())
+		}
+	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -698,18 +728,18 @@ pub mod pallet {
 	#[pallet::getter(fn initialized)]
 	pub type Initialized<T: Config> = StorageValue<_, bool, ValueQuery, T::Initialized>;
 
-	#[pallet::storage]
-	#[pallet::storage_prefix = "InitRelayBlock"]
-	#[pallet::getter(fn init_vesting_block)]
-	/// Vesting block height at the initialization of the pallet
-	type InitVestingBlock<T: Config> = StorageValue<_, T::VestingBlockNumber, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::storage_prefix = "EndRelayBlock"]
-	#[pallet::getter(fn end_vesting_block)]
-	/// Vesting block height at the initialization of the pallet
-	type EndVestingBlock<T: Config> = StorageValue<_, T::VestingBlockNumber, ValueQuery>;
-
+	// #[pallet::storage]
+	// #[pallet::storage_prefix = "InitRelayBlock"]
+	// #[pallet::getter(fn init_vesting_block)]
+	// /// Vesting block height at the initialization of the pallet
+	// type InitVestingBlock<T: Config> = StorageValue<_, T::VestingBlockNumber, ValueQuery>;
+    //
+	// #[pallet::storage]
+	// #[pallet::storage_prefix = "EndRelayBlock"]
+	// #[pallet::getter(fn end_vesting_block)]
+	// /// Vesting block height at the initialization of the pallet
+	// type EndVestingBlock<T: Config> = StorageValue<_, T::VestingBlockNumber, ValueQuery>;
+    //
 	#[pallet::storage]
 	#[pallet::getter(fn init_reward_amount)]
 	/// Total initialized amount so far. We store this to make pallet funds == contributors reward
