@@ -23,8 +23,9 @@ pub mod v1 {
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::OnRuntimeUpgrade;
 	use frame_support::dispatch::GetStorageVersion;
-	use sp_core::Get;
 
+	use sp_core::Get;
+	use sp_std::vec::Vec;
 
 	#[frame_support::storage_alias]
 	pub(super) type UnassociatedContributions<T: Config> =
@@ -55,6 +56,7 @@ pub mod v1 {
 			let current = Pallet::<T>::current_storage_version();
 			let onchain = Pallet::<T>::on_chain_storage_version();
 			const DEFAULT_CROWDLOAN_ID: u32  = 0u32;
+			let mut counter: u64 = 0;
 
 
 			if current == 1 && onchain == 0 {
@@ -65,7 +67,9 @@ pub mod v1 {
 					onchain
 					);
 
+
 				for (key, value) in v1::UnassociatedContributions::<T>::drain() {
+					counter+=1;
 					crate::pallet::UnassociatedContributions::<T>::insert(
 						DEFAULT_CROWDLOAN_ID,
 						key,
@@ -74,6 +78,7 @@ pub mod v1 {
 				}
 
 				for (key, value) in v1::AccountsPayable::<T>::drain() {
+					counter+=1;
 					crate::pallet::AccountsPayable::<T>::insert(
 						DEFAULT_CROWDLOAN_ID,
 						key,
@@ -81,26 +86,29 @@ pub mod v1 {
 						);
 				}
 
-
+				let mut writes_counter: u64 = 0;
+				// When 1st crowdloan was initialized with all the data (relay & local ids set)
+				// The `ClaimedRelayChainIds` storage entry is only used by `associate_native_identity`
+				// when someone (root/council) would like to associate unassociated rewards with
+				// particular account, so its obsolete to migrate this info. And because of
+				// extra cost of migration of `ClaimedRelayChainIds` we would be exceeding the block limits
+				// lets just ignore it
 				for (key, value) in v1::ClaimedRelayChainIds::<T>::drain() {
-					crate::pallet::ClaimedRelayChainIds::<T>::insert(
-						DEFAULT_CROWDLOAN_ID,
-						key,
-						value
-						);
+					writes_counter+=1;
 				}
 
 				crate::pallet::CrowdloanAllocation::<T>::insert(
 					DEFAULT_CROWDLOAN_ID,
 					v1::CrowdloanAllocation::<T>::take(),
-					);
+				);
 
 
 				let init = v1::InitRelayBlock::<T>::take();
 				let end = v1::EndRelayBlock::<T>::take();
 				crate::pallet::CrowdloanPeriod::<T>::insert(DEFAULT_CROWDLOAN_ID, (init, end));
 
-				T::DbWeight::get().reads(2)
+				log!(info, "Migrated entries: {}", counter);
+				T::DbWeight::get().reads_writes(counter, writes_counter + counter + 2)
 			} else {
 				log!(info, "Migration did not executed. This probably should be removed");
 				T::DbWeight::get().reads(2)
@@ -108,27 +116,30 @@ pub mod v1 {
 		}
 
 		#[cfg(feature = "try-runtime")]
-		fn pre_upgrade() -> Result<(), &'static str> {
-			log!(info, "Crowdloan::pre_upgrade");
+		fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+			log!(info, "Crowdloan::pre_upgrade start");
 
 			assert_eq!(Pallet::<T>::on_chain_storage_version(), 0);
 			assert!(v1::AccountsPayable::<T>::iter().count() > 0);
+			assert!(crate::pallet::CrowdloanPeriod::<T>::iter().count() == 0);
 
-			assert!(crate::pallet::AccountsPayable::<T>::iter().count() == 0);
-			assert!(crate::pallet::CrowdloanPeriod::<T>::iter().count()	== 0);
-			Ok(())
+			log!(info, "Crowdloan::pre_upgrade finished");
+			Ok(Default::default())
 		}
 
 		#[cfg(feature = "try-runtime")]
-		fn post_upgrade() -> Result<(), &'static str> {
-			log!(info, "Crowdloan::post_upgrade");
+		fn post_upgrade(_state: Vec<u8>) -> Result<(), &'static str> {
+			const DEFAULT_CROWDLOAN_ID: u32  = 0u32;
+			log!(info, "Crowdlon::post_upgrade start");
+			assert_eq!(Pallet::<T>::current_storage_version(), 1);
+			
+			for (key, key2, value) in crate::pallet::AccountsPayable::<T>::iter() {
+				assert_eq!(key, DEFAULT_CROWDLOAN_ID);
+			}
 
-			assert_eq!(Pallet::<T>::on_chain_storage_version(), 1);
-			assert!(v1::AccountsPayable::<T>::iter().count() == 0);
+			assert!(crate::AccountsPayable::<T>::iter().count() > 0);
 
-			assert!(crate::pallet::AccountsPayable::<T>::iter().count() > 0);
-			assert!(crate::pallet::CrowdloanPeriod::<T>::iter().count()	== 1);
-
+			log!(info, "Crowdlon::post_upgrade finished");
 			Ok(())
 		}
 	}

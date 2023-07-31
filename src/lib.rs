@@ -99,9 +99,10 @@ pub mod pallet {
 	use sp_std::collections::btree_map::BTreeMap;
 	use sp_std::vec;
 	use sp_std::vec::Vec;
+	use frame_support::traits::OnRuntimeUpgrade;
 
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -184,18 +185,18 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		#[cfg(feature = "try-runtime")]
-		fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
-			Ok(Default::default())
+		fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+			crate::migration::v1::MigrateToV1::<T>::pre_upgrade()
 		}
 
 		fn on_runtime_upgrade() -> Weight {
-			Weight::zero()
+			crate::migration::v1::MigrateToV1::<T>::on_runtime_upgrade()
 		}
 
 
 		#[cfg(feature = "try-runtime")]
-		fn post_upgrade(_state: Vec<u8>) -> Result<(), TryRuntimeError> {
-			Ok(())
+		fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
+			crate::migration::v1::MigrateToV1::<T>::post_upgrade(state)
 		}
 	}
 
