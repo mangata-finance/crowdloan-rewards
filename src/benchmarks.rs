@@ -251,7 +251,7 @@ benchmarks! {
 		// The new user
 		let new_user = create_funded_user::<T>("user", SEED+1, 0u32.into());
 
-	}:  _(RawOrigin::Signed(caller.clone()), new_user.clone())
+	}:  _(RawOrigin::Signed(caller.clone()), new_user.clone(), None)
 	verify {
 		assert_eq!(Pallet::<T>::accounts_payable(0u32, &new_user).unwrap().total_reward, (100u32.into()));
 		assert!(Pallet::<T>::claimed_relay_chain_ids(0u32, &relay_account).is_some());

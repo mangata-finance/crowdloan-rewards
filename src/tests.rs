@@ -19,7 +19,7 @@
 use crate::*;
 use frame_support::dispatch::{DispatchError, Dispatchable};
 use frame_support::traits::tokens::currency::MultiTokenCurrency;
-use frame_support::traits::WithdrawReasons;
+
 use frame_support::{assert_err, assert_noop, assert_ok};
 use mangata_types::TokenId;
 use mock::*;
@@ -133,7 +133,7 @@ fn proving_assignation_works() {
 		// Signature is wrong, prove fails
 		assert_noop!(
 			Crowdloan::associate_native_identity(
-				RuntimeOrigin::signed(4),
+				RuntimeOrigin::root(),
 				4,
 				pairs[0].public().into(),
 				signature.clone()
@@ -144,7 +144,7 @@ fn proving_assignation_works() {
 		// Signature is right, but address already claimed
 		assert_noop!(
 			Crowdloan::associate_native_identity(
-				RuntimeOrigin::signed(4),
+				RuntimeOrigin::root(),
 				1,
 				pairs[0].public().into(),
 				alread_associated_signature
@@ -154,7 +154,7 @@ fn proving_assignation_works() {
 
 		// Signature is right, prove passes
 		assert_ok!(Crowdloan::associate_native_identity(
-			RuntimeOrigin::signed(4),
+			RuntimeOrigin::root(),
 			3,
 			pairs[0].public().into(),
 			signature.clone()
@@ -163,7 +163,7 @@ fn proving_assignation_works() {
 		// Signature is right, but relay address is no longer on unassociated
 		assert_noop!(
 			Crowdloan::associate_native_identity(
-				RuntimeOrigin::signed(4),
+				RuntimeOrigin::root(),
 				3,
 				pairs[0].public().into(),
 				signature
@@ -390,7 +390,7 @@ fn paying_late_joiner_works() {
 
 		roll_to(12);
 		assert_ok!(Crowdloan::associate_native_identity(
-			RuntimeOrigin::signed(4),
+			RuntimeOrigin::root(),
 			3,
 			pairs[0].public().into(),
 			signature.clone()
@@ -439,7 +439,8 @@ fn update_address_works() {
 		);
 		assert_ok!(Crowdloan::update_reward_address(
 			RuntimeOrigin::signed(1),
-			8
+			8,
+			None,
 		));
 		assert_eq!(transferable_balance(&1, 0), 200);
 		roll_to(5);
@@ -482,7 +483,7 @@ fn update_address_with_existing_address_fails() {
 		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(1), None));
 		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(2), None));
 		assert_noop!(
-			Crowdloan::update_reward_address(RuntimeOrigin::signed(1), 2),
+			Crowdloan::update_reward_address(RuntimeOrigin::signed(1), 2, None),
 			Error::<Test>::AlreadyAssociated
 		);
 	});
@@ -517,7 +518,8 @@ fn update_address_with_existing_with_multi_address_works() {
 		// We make sure all rewards go to the new address
 		assert_ok!(Crowdloan::update_reward_address(
 			RuntimeOrigin::signed(1),
-			2
+			2,
+			None
 		));
 		assert_eq!(
 			Crowdloan::accounts_payable(0, &2).unwrap().claimed_reward,
@@ -834,7 +836,7 @@ fn test_relay_signatures_can_change_reward_addresses() {
 		// Not sufficient proofs presented
 		assert_noop!(
 			Crowdloan::change_association_with_relay_keys(
-				RuntimeOrigin::signed(1),
+				RuntimeOrigin::root(),
 				2,
 				1,
 				insufficient_proofs.clone()
@@ -850,7 +852,7 @@ fn test_relay_signatures_can_change_reward_addresses() {
 
 		// This time should pass
 		assert_ok!(Crowdloan::change_association_with_relay_keys(
-			RuntimeOrigin::signed(1),
+			RuntimeOrigin::root(),
 			2,
 			1,
 			sufficient_proofs.clone()
@@ -1081,7 +1083,7 @@ fn change_crowdloan_allocation_before_finalization() {
 	empty().execute_with(|| {
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
-		let second_crowdloan_period = (5u64, 13u64);
+		let _second_crowdloan_period = (5u64, 13u64);
 		let ALICE = 1u64;
 
 		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 2500u128).unwrap();
@@ -1129,5 +1131,155 @@ fn change_crowdloan_allocation_before_finalization() {
 
 		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 1000u128).unwrap();
 		assert_eq!(Crowdloan::get_crowdloan_id(), 2);
+	});
+}
+
+#[test]
+fn change_crowdloan_allocation_before_finalization_to_lower_value_than_initialized_so_far() {
+	empty().execute_with(|| {
+		let pairs = get_ed25519_pairs(2);
+		let first_crowdloan_period = (1u64, 9u64);
+		let _second_crowdloan_period = (5u64, 13u64);
+		let ALICE = 1u64;
+
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 2500u128).unwrap();
+		// We will have all pointint to the same reward account
+		assert_ok!(Crowdloan::initialize_reward_vec(
+			RuntimeOrigin::root(),
+			vec![(pairs[0].public().into(), Some(ALICE), 500u32.into()),],
+		));
+
+		assert_err!(
+			Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 499u128),
+			Error::<Test>::AllocationDoesNotMatch
+		);
+
+		assert_ok!(Crowdloan::set_crowdloan_allocation(
+			RuntimeOrigin::root(),
+			2500u128
+		));
+
+		assert_err!(
+			Crowdloan::complete_initialization(
+				RuntimeOrigin::root(),
+				first_crowdloan_period.0,
+				first_crowdloan_period.1
+			),
+			Error::<Test>::RewardsDoNotMatchFund
+		);
+
+		assert_ok!(Crowdloan::set_crowdloan_allocation(
+			RuntimeOrigin::root(),
+			500u128
+		));
+
+		assert_ok!(Crowdloan::complete_initialization(
+			RuntimeOrigin::root(),
+			first_crowdloan_period.0,
+			first_crowdloan_period.1
+		));
+	});
+}
+
+#[test]
+fn track_total_crowdloan_contributors_for_each_crowdloan_separately() {
+	empty().execute_with(|| {
+		let pairs = get_ed25519_pairs(2);
+		let first_crowdloan_period = (1u64, 9u64);
+		let _second_crowdloan_period = (5u64, 13u64);
+		let ALICE = 1u64;
+
+		// FIRST CROWDLOAN
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 500u128).unwrap();
+		assert_ok!(Crowdloan::initialize_reward_vec(
+			RuntimeOrigin::root(),
+			vec![(pairs[0].public().into(), Some(ALICE), 500u32.into()),],
+		));
+		assert_ok!(Crowdloan::complete_initialization(
+			RuntimeOrigin::root(),
+			first_crowdloan_period.0,
+			first_crowdloan_period.1
+		));
+
+		// SECOND CROWDLOAN
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 500u128).unwrap();
+		assert_ok!(Crowdloan::initialize_reward_vec(
+			RuntimeOrigin::root(),
+			vec![(pairs[0].public().into(), Some(ALICE), 500u32.into()),],
+		));
+		assert_ok!(Crowdloan::complete_initialization(
+			RuntimeOrigin::root(),
+			first_crowdloan_period.0,
+			first_crowdloan_period.1
+		));
+
+		assert_eq!(Crowdloan::total_contributors_by_id(0), 1);
+		assert_eq!(Crowdloan::total_contributors_by_id(1), 1);
+	});
+}
+
+#[test]
+fn update_rewards_address_for_past_crwdloans() {
+	empty().execute_with(|| {
+		let pairs = get_ed25519_pairs(2);
+		let first_crowdloan_period = (1u64, 9u64);
+		let _second_crowdloan_period = (5u64, 13u64);
+		let ALICE = 1u64;
+		let ALICE_NEW = 11u64;
+
+		let BOB = 2u64;
+		let BOB_NEW = 12u64;
+
+		// FIRST CROWDLOAN
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 500u128).unwrap();
+		assert_ok!(Crowdloan::initialize_reward_vec(
+			RuntimeOrigin::root(),
+			vec![(pairs[0].public().into(), Some(ALICE), 500u32.into()),],
+		));
+		assert_ok!(Crowdloan::complete_initialization(
+			RuntimeOrigin::root(),
+			first_crowdloan_period.0,
+			first_crowdloan_period.1
+		));
+
+		// SECOND CROWDLOAN
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 500u128).unwrap();
+		assert_ok!(Crowdloan::initialize_reward_vec(
+			RuntimeOrigin::root(),
+			vec![(pairs[0].public().into(), Some(BOB), 500u32.into()),],
+		));
+		assert_ok!(Crowdloan::complete_initialization(
+			RuntimeOrigin::root(),
+			first_crowdloan_period.0,
+			first_crowdloan_period.1
+		));
+
+		assert!(Crowdloan::accounts_payable(0, ALICE).is_some(),);
+		assert!(Crowdloan::accounts_payable(1, BOB).is_some(),);
+
+		assert_err!(
+			Crowdloan::update_reward_address(RuntimeOrigin::signed(ALICE), ALICE_NEW, Some(1),),
+			Error::<Test>::NoAssociatedClaim
+		);
+
+		assert_err!(
+			Crowdloan::update_reward_address(RuntimeOrigin::signed(BOB), BOB_NEW, Some(0),),
+			Error::<Test>::NoAssociatedClaim
+		);
+
+		assert_ok!(Crowdloan::update_reward_address(
+			RuntimeOrigin::signed(ALICE),
+			ALICE_NEW,
+			Some(0),
+		));
+
+		assert_ok!(Crowdloan::update_reward_address(
+			RuntimeOrigin::signed(BOB),
+			BOB_NEW,
+			Some(1),
+		));
+
+		assert!(Crowdloan::accounts_payable(0, ALICE_NEW).is_some(),);
+		assert!(Crowdloan::accounts_payable(1, BOB_NEW).is_some(),);
 	});
 }

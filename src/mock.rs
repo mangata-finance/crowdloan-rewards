@@ -21,7 +21,7 @@ use frame_support::{
 	traits::{Contains, GenesisBuild, Nothing, OnFinalize, OnInitialize},
 	PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSigned};
+use frame_system::EnsureRoot;
 use mangata_types::{Amount, Balance, TokenId};
 use orml_traits::parameter_type_with_key;
 use sp_core::{ed25519, Pair, H256};
