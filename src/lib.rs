@@ -70,7 +70,18 @@ pub(crate) mod mock;
 mod tests;
 pub mod weights;
 
+mod migration;
 pub use weights::WeightInfo;
+
+#[macro_export]
+macro_rules! log {
+	($level:tt, $patter:expr $(, $values:expr)* $(,)?) => {
+		log::$level!(
+			target: "crowdloan",
+			concat!("[{:?}] 💸 ", $patter), <frame_system::Pallet<T>>::block_number() $(, $values)*
+		)
+	};
+}
 
 #[pallet]
 pub mod pallet {
@@ -84,13 +95,18 @@ pub mod pallet {
 	use pallet_vesting_mangata::MultiTokenVestingLocks;
 	use sp_core::crypto::AccountId32;
 	use sp_runtime::traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Verify, Zero};
-	use sp_runtime::{DispatchErrorWithPostInfo, MultiSignature, Perbill};
+	use sp_runtime::{MultiSignature, Perbill};
 	use sp_std::collections::btree_map::BTreeMap;
 	use sp_std::vec;
 	use sp_std::vec::Vec;
+	use frame_support::traits::OnRuntimeUpgrade;
+
+
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	// The crowdloan rewards pallet
 	pub struct Pallet<T>(PhantomData<T>);
 
@@ -167,7 +183,22 @@ pub mod pallet {
 
 	// This hook is in charge of initializing the vesting height at the first block of the parachain
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+			crate::migration::v1::MigrateToV1::<T>::pre_upgrade()
+		}
+
+		fn on_runtime_upgrade() -> Weight {
+			crate::migration::v1::MigrateToV1::<T>::on_runtime_upgrade()
+		}
+
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
+			crate::migration::v1::MigrateToV1::<T>::post_upgrade(state)
+		}
+	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -196,7 +227,7 @@ pub mod pallet {
 			// The less costly checks will go first
 
 			// The relay account should be unassociated
-			let mut reward_info =
+			let reward_info =
 				UnassociatedContributions::<T>::get(CrowdloanId::<T>::get(), &relay_account)
 					.ok_or(Error::<T>::NoAssociatedClaim)?;
 
@@ -323,7 +354,7 @@ pub mod pallet {
 			);
 
 			// Get the current block used for vesting purposes
-			let now = T::VestingBlockProvider::current_block_number();
+			let _now = T::VestingBlockProvider::current_block_number();
 
 			// How much should the contributor have already claimed by this block?
 			// By multiplying first we allow the conversion to integer done with the biggest number
@@ -717,18 +748,18 @@ pub mod pallet {
 	#[pallet::getter(fn initialized)]
 	pub type Initialized<T: Config> = StorageValue<_, bool, ValueQuery, T::Initialized>;
 
-	#[pallet::storage]
-	#[pallet::storage_prefix = "InitRelayBlock"]
-	#[pallet::getter(fn init_vesting_block)]
-	/// Vesting block height at the initialization of the pallet
-	type InitVestingBlock<T: Config> = StorageValue<_, T::VestingBlockNumber, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::storage_prefix = "EndRelayBlock"]
-	#[pallet::getter(fn end_vesting_block)]
-	/// Vesting block height at the initialization of the pallet
-	type EndVestingBlock<T: Config> = StorageValue<_, T::VestingBlockNumber, ValueQuery>;
-
+	// #[pallet::storage]
+	// #[pallet::storage_prefix = "InitRelayBlock"]
+	// #[pallet::getter(fn init_vesting_block)]
+	// /// Vesting block height at the initialization of the pallet
+	// type InitVestingBlock<T: Config> = StorageValue<_, T::VestingBlockNumber, ValueQuery>;
+    //
+	// #[pallet::storage]
+	// #[pallet::storage_prefix = "EndRelayBlock"]
+	// #[pallet::getter(fn end_vesting_block)]
+	// /// Vesting block height at the initialization of the pallet
+	// type EndVestingBlock<T: Config> = StorageValue<_, T::VestingBlockNumber, ValueQuery>;
+    //
 	#[pallet::storage]
 	#[pallet::getter(fn init_reward_amount)]
 	/// Total initialized amount so far. We store this to make pallet funds == contributors reward

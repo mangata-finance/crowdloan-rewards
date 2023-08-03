@@ -19,7 +19,7 @@
 use crate::*;
 use frame_support::dispatch::{DispatchError, Dispatchable};
 use frame_support::traits::tokens::currency::MultiTokenCurrency;
-use frame_support::traits::WithdrawReasons;
+
 use frame_support::{assert_err, assert_noop, assert_ok};
 use mangata_types::TokenId;
 use mock::*;
@@ -1083,7 +1083,7 @@ fn change_crowdloan_allocation_before_finalization() {
 	empty().execute_with(|| {
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
-		let second_crowdloan_period = (5u64, 13u64);
+		let _second_crowdloan_period = (5u64, 13u64);
 		let ALICE = 1u64;
 
 		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 2500u128).unwrap();
@@ -1139,7 +1139,7 @@ fn change_crowdloan_allocation_before_finalization_to_lower_value_than_initializ
 	empty().execute_with(|| {
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
-		let second_crowdloan_period = (5u64, 13u64);
+		let _second_crowdloan_period = (5u64, 13u64);
 		let ALICE = 1u64;
 
 		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 2500u128).unwrap();
@@ -1186,7 +1186,7 @@ fn track_total_crowdloan_contributors_for_each_crowdloan_separately() {
 	empty().execute_with(|| {
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
-		let second_crowdloan_period = (5u64, 13u64);
+		let _second_crowdloan_period = (5u64, 13u64);
 		let ALICE = 1u64;
 
 		// FIRST CROWDLOAN
@@ -1223,7 +1223,7 @@ fn update_rewards_address_for_past_crwdloans() {
 	empty().execute_with(|| {
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
-		let second_crowdloan_period = (5u64, 13u64);
+		let _second_crowdloan_period = (5u64, 13u64);
 		let ALICE = 1u64;
 		let ALICE_NEW = 11u64;
 
