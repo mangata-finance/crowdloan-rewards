@@ -1,4 +1,3 @@
-
 // This file is part of Substrate.
 
 // Copyright (C) 2022 Parity Technologies (UK) Ltd.
@@ -20,33 +19,47 @@ use super::*;
 
 pub mod v1 {
 	use super::*;
+	use frame_support::dispatch::GetStorageVersion;
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::OnRuntimeUpgrade;
-	use frame_support::dispatch::GetStorageVersion;
 
 	use sp_core::Get;
-	
 
 	#[frame_support::storage_alias]
 	pub(super) type UnassociatedContributions<T: Config> =
 		StorageMap<Pallet<T>, Blake2_128Concat, <T as Config>::RelayChainAccountId, RewardInfo<T>>;
 
 	#[frame_support::storage_alias]
-	pub(super) type AccountsPayable<T: Config> =
-		StorageMap<Pallet<T>, Blake2_128Concat, <T as frame_system::Config>::AccountId, RewardInfo<T>>;
+	pub(super) type AccountsPayable<T: Config> = StorageMap<
+		Pallet<T>,
+		Blake2_128Concat,
+		<T as frame_system::Config>::AccountId,
+		RewardInfo<T>,
+	>;
 
 	#[frame_support::storage_alias]
-	pub type CrowdloanAllocation<T: Config> = StorageValue<Pallet<T>, mangata_types::Balance, ValueQuery>;
+	pub type CrowdloanAllocation<T: Config> =
+		StorageValue<Pallet<T>, mangata_types::Balance, ValueQuery>;
 
 	#[frame_support::storage_alias]
-	pub type ClaimedRelayChainIds<T: Config> = StorageMap<Pallet<T>, Blake2_128Concat, <T as Config>::RelayChainAccountId, ()>;
+	pub type InitializedRewardAmount<T: Config> =
+		StorageValue<Pallet<T>, mangata_types::Balance, ValueQuery>;
 
 	#[frame_support::storage_alias]
-	type InitRelayBlock<T: Config> = StorageValue<Pallet<T>, <T as Config>::VestingBlockNumber, ValueQuery>;
+	pub type TotalContributors<T: Config> = StorageValue<Pallet<T>, u32, ValueQuery>;
 
 	#[frame_support::storage_alias]
-	type EndRelayBlock<T: Config> = StorageValue<Pallet<T>, <T as Config>::VestingBlockNumber, ValueQuery>;
-	
+	pub type ClaimedRelayChainIds<T: Config> =
+		StorageMap<Pallet<T>, Blake2_128Concat, <T as Config>::RelayChainAccountId, ()>;
+
+	#[frame_support::storage_alias]
+	type InitRelayBlock<T: Config> =
+		StorageValue<Pallet<T>, <T as Config>::VestingBlockNumber, ValueQuery>;
+
+	#[frame_support::storage_alias]
+	type EndRelayBlock<T: Config> =
+		StorageValue<Pallet<T>, <T as Config>::VestingBlockNumber, ValueQuery>;
+
 	/// Trivial migration which makes the roles of each pool optional.
 	///
 	/// Note: The depositor is not optional since he can never change.
@@ -55,9 +68,8 @@ pub mod v1 {
 		fn on_runtime_upgrade() -> Weight {
 			let current = Pallet::<T>::current_storage_version();
 			let onchain = Pallet::<T>::on_chain_storage_version();
-			const DEFAULT_CROWDLOAN_ID: u32  = 0u32;
+			const DEFAULT_CROWDLOAN_ID: u32 = 0u32;
 			let mut counter: u64 = 0;
-
 
 			if current == 1 && onchain == 0 {
 				log!(
@@ -65,25 +77,20 @@ pub mod v1 {
 					"Running V1 migration with current storage version {:?} / onchain {:?}",
 					current,
 					onchain
-					);
-
+				);
 
 				for (key, value) in v1::UnassociatedContributions::<T>::drain() {
-					counter+=1;
+					counter += 1;
 					crate::pallet::UnassociatedContributions::<T>::insert(
 						DEFAULT_CROWDLOAN_ID,
 						key,
-						value
-						);
+						value,
+					);
 				}
 
 				for (key, value) in v1::AccountsPayable::<T>::drain() {
-					counter+=1;
-					crate::pallet::AccountsPayable::<T>::insert(
-						DEFAULT_CROWDLOAN_ID,
-						key,
-						value
-						);
+					counter += 1;
+					crate::pallet::AccountsPayable::<T>::insert(DEFAULT_CROWDLOAN_ID, key, value);
 				}
 
 				let mut writes_counter: u64 = 0;
@@ -94,7 +101,7 @@ pub mod v1 {
 				// extra cost of migration of `ClaimedRelayChainIds` we would be exceeding the block limits
 				// lets just ignore it
 				for (_key, _value) in v1::ClaimedRelayChainIds::<T>::drain() {
-					writes_counter+=1;
+					writes_counter += 1;
 				}
 
 				crate::pallet::CrowdloanAllocation::<T>::insert(
@@ -102,6 +109,15 @@ pub mod v1 {
 					v1::CrowdloanAllocation::<T>::take(),
 				);
 
+				crate::pallet::InitializedRewardAmount::<T>::insert(
+					DEFAULT_CROWDLOAN_ID,
+					v1::InitializedRewardAmount::<T>::take(),
+				);
+
+				crate::pallet::TotalContributors::<T>::insert(
+					DEFAULT_CROWDLOAN_ID,
+					v1::TotalContributors::<T>::take(),
+				);
 
 				let init = v1::InitRelayBlock::<T>::take();
 				let end = v1::EndRelayBlock::<T>::take();
@@ -110,7 +126,10 @@ pub mod v1 {
 				log!(info, "Migrated entries: {}", counter);
 				T::DbWeight::get().reads_writes(counter, writes_counter + counter + 2)
 			} else {
-				log!(info, "Migration did not executed. This probably should be removed");
+				log!(
+					info,
+					"Migration did not executed. This probably should be removed"
+				);
 				T::DbWeight::get().reads(2)
 			}
 		}
@@ -129,10 +148,10 @@ pub mod v1 {
 
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade(_state: Vec<u8>) -> Result<(), &'static str> {
-			const DEFAULT_CROWDLOAN_ID: u32  = 0u32;
+			const DEFAULT_CROWDLOAN_ID: u32 = 0u32;
 			log!(info, "Crowdlon::post_upgrade start");
 			assert_eq!(Pallet::<T>::current_storage_version(), 1);
-			
+
 			for (key, key2, value) in crate::pallet::AccountsPayable::<T>::iter() {
 				assert_eq!(key, DEFAULT_CROWDLOAN_ID);
 			}
@@ -144,4 +163,3 @@ pub mod v1 {
 		}
 	}
 }
-

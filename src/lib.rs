@@ -89,6 +89,7 @@ pub mod pallet {
 	use crate::weights::WeightInfo;
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::tokens::currency::MultiTokenCurrency;
+	use frame_support::traits::OnRuntimeUpgrade;
 	use frame_system::pallet_prelude::*;
 	use mangata_types::{Balance, TokenId};
 	use orml_tokens::MultiTokenCurrencyExtended;
@@ -99,8 +100,6 @@ pub mod pallet {
 	use sp_std::collections::btree_map::BTreeMap;
 	use sp_std::vec;
 	use sp_std::vec::Vec;
-	use frame_support::traits::OnRuntimeUpgrade;
-
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -192,7 +191,6 @@ pub mod pallet {
 		fn on_runtime_upgrade() -> Weight {
 			crate::migration::v1::MigrateToV1::<T>::on_runtime_upgrade()
 		}
-
 
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
@@ -753,24 +751,25 @@ pub mod pallet {
 	// #[pallet::getter(fn init_vesting_block)]
 	// /// Vesting block height at the initialization of the pallet
 	// type InitVestingBlock<T: Config> = StorageValue<_, T::VestingBlockNumber, ValueQuery>;
-    //
+	//
 	// #[pallet::storage]
 	// #[pallet::storage_prefix = "EndRelayBlock"]
 	// #[pallet::getter(fn end_vesting_block)]
 	// /// Vesting block height at the initialization of the pallet
 	// type EndVestingBlock<T: Config> = StorageValue<_, T::VestingBlockNumber, ValueQuery>;
-    //
+	//
 	#[pallet::storage]
 	#[pallet::getter(fn init_reward_amount)]
 	/// Total initialized amount so far. We store this to make pallet funds == contributors reward
 	/// check easier and more efficient
-	type InitializedRewardAmount<T: Config> =
+	pub(crate) type InitializedRewardAmount<T: Config> =
 		StorageMap<_, Blake2_128Concat, u32, Balance, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn total_contributors_by_id)]
 	/// Total number of contributors to aid hinting benchmarking
-	type TotalContributors<T: Config> = StorageMap<_, Blake2_128Concat, u32, u32, ValueQuery>;
+	pub(crate) type TotalContributors<T: Config> =
+		StorageMap<_, Blake2_128Concat, u32, u32, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(fn deposit_event)]
