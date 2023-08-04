@@ -340,11 +340,15 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let payee = ensure_signed(origin)?;
 
-			let initialized = <Initialized<T>>::get();
-			ensure!(initialized, Error::<T>::RewardVecNotFullyInitializedYet);
+			let current_crowdloan_id = CrowdloanId::<T>::get();
+			let crowdloan_id = crowdloan_id.unwrap_or(current_crowdloan_id);
+
+			ensure!(
+				<Initialized<T>>::get() || crowdloan_id < current_crowdloan_id,
+				Error::<T>::RewardVecNotFullyInitializedYet
+			);
 			// Calculate the veted amount on demand.
-			let crowdloan_id = crowdloan_id.unwrap_or(CrowdloanId::<T>::get());
-			let mut info = AccountsPayable::<T>::get(CrowdloanId::<T>::get(), &payee)
+			let mut info = AccountsPayable::<T>::get(crowdloan_id, &payee)
 				.ok_or(Error::<T>::NoAssociatedClaim)?;
 			ensure!(
 				info.claimed_reward < info.total_reward,
@@ -375,7 +379,7 @@ pub mod pallet {
 			)?;
 
 			Self::deposit_event(Event::RewardsPaid(payee.clone(), amount));
-			AccountsPayable::<T>::insert(CrowdloanId::<T>::get(), &payee, &info);
+			AccountsPayable::<T>::insert(crowdloan_id, &payee, &info);
 
 			Ok(Default::default())
 		}

@@ -1283,3 +1283,41 @@ fn update_rewards_address_for_past_crwdloans() {
 		assert!(Crowdloan::accounts_payable(1, BOB_NEW).is_some(),);
 	});
 }
+
+#[test]
+fn test_claim_previous_crowdloan_rewards_during_initialization_of_another_one() {
+	empty().execute_with(|| {
+		let pairs = get_ed25519_pairs(2);
+		let first_crowdloan_period = (1u64, 9u64);
+		let _second_crowdloan_period = (5u64, 13u64);
+		let ALICE = 1u64;
+		let BOB = 2u64;
+
+		// FIRST CROWDLOAN
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 500u128).unwrap();
+		assert_ok!(Crowdloan::initialize_reward_vec(
+			RuntimeOrigin::root(),
+			vec![(pairs[0].public().into(), Some(ALICE), 500u32.into()),],
+		));
+		assert_ok!(Crowdloan::complete_initialization(
+			RuntimeOrigin::root(),
+			first_crowdloan_period.0,
+			first_crowdloan_period.1
+		));
+
+		// SECOND CROWDLOAN
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 500u128).unwrap();
+		assert_ok!(Crowdloan::initialize_reward_vec(
+			RuntimeOrigin::root(),
+			vec![(pairs[0].public().into(), Some(BOB), 500u32.into()),],
+		));
+
+		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(ALICE), Some(0)));
+
+		assert_ok!(Crowdloan::complete_initialization(
+			RuntimeOrigin::root(),
+			first_crowdloan_period.0,
+			first_crowdloan_period.1
+		));
+	});
+}
