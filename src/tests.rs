@@ -1321,3 +1321,147 @@ fn test_claim_previous_crowdloan_rewards_during_initialization_of_another_one() 
 		));
 	});
 }
+
+#[test]
+fn reproduce_MGX654_bug_report() {
+	empty().execute_with(|| {
+		let pairs = get_ed25519_pairs(3);
+		const ALICE: u64 = 1u64;
+		const BOB: u64 = 2u64;
+		const CHARLIE: u64 = 3u64;
+		const SINGLE_USER_REWARDS: u128 = 1_000_000u128;
+
+		// FIRST CROWDLOAN
+		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 3 * SINGLE_USER_REWARDS)
+			.unwrap();
+		assert_ok!(Crowdloan::initialize_reward_vec(
+			RuntimeOrigin::root(),
+			vec![
+				(
+					pairs[0].public().into(),
+					Some(ALICE),
+					SINGLE_USER_REWARDS.into()
+				),
+				(
+					pairs[1].public().into(),
+					Some(BOB),
+					SINGLE_USER_REWARDS.into()
+				),
+				(
+					pairs[2].public().into(),
+					Some(CHARLIE),
+					SINGLE_USER_REWARDS.into()
+				),
+			],
+		));
+
+		assert_ok!(Crowdloan::complete_initialization(
+			RuntimeOrigin::root(),
+			10,
+			60,
+		));
+
+		assert_eq!(
+			orml_tokens::Pallet::<Test>::accounts(ALICE, 0),
+			orml_tokens::AccountData {
+				free: 0u128,
+				reserved: 0u128,
+				frozen: 0u128
+			}
+		);
+
+		assert_eq!(
+			orml_tokens::Pallet::<Test>::accounts(BOB, 0),
+			orml_tokens::AccountData {
+				free: 0u128,
+				reserved: 0u128,
+				frozen: 0u128
+			}
+		);
+
+		assert_eq!(
+			orml_tokens::Pallet::<Test>::accounts(CHARLIE, 0),
+			orml_tokens::AccountData {
+				free: 0u128,
+				reserved: 0u128,
+				frozen: 0u128
+			}
+		);
+
+		roll_to(8);
+		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(ALICE), Some(0)));
+		assert_eq!(
+			orml_tokens::Pallet::<Test>::accounts(ALICE, 0),
+			orml_tokens::AccountData {
+				free: SINGLE_USER_REWARDS,
+				reserved: 0u128,
+				frozen: SINGLE_USER_REWARDS
+					- (<Test as Config>::InitializationPayment::get() * SINGLE_USER_REWARDS)
+			}
+		);
+
+		roll_to(50);
+		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(BOB), Some(0)));
+		assert_eq!(
+			orml_tokens::Pallet::<Test>::accounts(BOB, 0),
+			orml_tokens::AccountData {
+				free: SINGLE_USER_REWARDS,
+				reserved: 0u128,
+				frozen: (SINGLE_USER_REWARDS
+					- (<Test as Config>::InitializationPayment::get() * SINGLE_USER_REWARDS))
+					* 10 / 50
+			}
+		);
+
+		roll_to(70);
+		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(CHARLIE), Some(0)));
+		assert_eq!(
+			orml_tokens::Pallet::<Test>::accounts(CHARLIE, 0),
+			orml_tokens::AccountData {
+				free: SINGLE_USER_REWARDS,
+				reserved: 0u128,
+				frozen: 0u128
+			}
+		);
+
+		assert_ok!(pallet_vesting_mangata::Pallet::<Test>::vest(
+			RuntimeOrigin::signed(ALICE),
+			0
+		));
+		assert_ok!(pallet_vesting_mangata::Pallet::<Test>::vest(
+			RuntimeOrigin::signed(BOB),
+			0
+		));
+		assert_err!(
+			pallet_vesting_mangata::Pallet::<Test>::vest(RuntimeOrigin::signed(CHARLIE), 0),
+			pallet_vesting_mangata::Error::<Test>::NotVesting
+		);
+
+		assert_eq!(
+			orml_tokens::Pallet::<Test>::accounts(ALICE, 0),
+			orml_tokens::AccountData {
+				free: SINGLE_USER_REWARDS,
+				reserved: 0u128,
+				frozen: 0u128
+			}
+		);
+
+		assert_eq!(
+			orml_tokens::Pallet::<Test>::accounts(BOB, 0),
+			orml_tokens::AccountData {
+				free: SINGLE_USER_REWARDS,
+				reserved: 0u128,
+				frozen: 0u128
+			}
+		);
+
+		assert_eq!(
+			orml_tokens::Pallet::<Test>::accounts(CHARLIE, 0),
+			orml_tokens::AccountData {
+				free: SINGLE_USER_REWARDS,
+				reserved: 0u128,
+				frozen: 0u128
+			}
+		);
+	});
+}
