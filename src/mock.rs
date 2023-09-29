@@ -18,7 +18,7 @@
 use crate::{self as pallet_crowdloan_rewards, Config};
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Contains, GenesisBuild, Nothing, OnFinalize, OnInitialize},
+	traits::{Contains, Nothing, OnFinalize, OnInitialize, WithdrawReasons},
 	PalletId,
 };
 use frame_system::EnsureRoot;
@@ -27,9 +27,8 @@ use orml_traits::parameter_type_with_key;
 use sp_core::{ed25519, Pair, H256};
 use sp_io;
 use sp_runtime::{
-	testing::Header,
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
-	Perbill,
+	BuildStorage, Perbill,
 };
 use sp_std::convert::{From, TryInto};
 
@@ -41,12 +40,8 @@ type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
-	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+	pub enum Test {
+		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},
 		Crowdloan: pallet_crowdloan_rewards::{Pallet, Call, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Storage, Event},
@@ -63,14 +58,11 @@ impl frame_system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
-	type Index = u64;
 	type RuntimeCall = RuntimeCall;
-	type BlockNumber = BlockNumber;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
@@ -83,6 +75,8 @@ impl frame_system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 	type MaxConsumers = sp_core::ConstU32<16>;
+	type Nonce = u64;
+	type Block = Block;
 }
 
 parameter_type_with_key! {
@@ -123,6 +117,8 @@ impl orml_tokens::Config for Test {
 
 parameter_types! {
 	pub const MinVestedTransfer: Balance = 0;
+	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
+		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
 }
 
 impl pallet_vesting_mangata::Config for Test {
@@ -131,6 +127,7 @@ impl pallet_vesting_mangata::Config for Test {
 	type BlockNumberToBalance = sp_runtime::traits::ConvertInto;
 	type MinVestedTransfer = MinVestedTransfer;
 	type WeightInfo = pallet_vesting_mangata::weights::SubstrateWeight<Test>;
+	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
 	// `VestingInfo` encode length is 36bytes. 28 schedules gets encoded as 1009 bytes, which is the
 	// highest number of schedules that encodes less than 2^10.
 	const MAX_VESTING_SCHEDULES: u32 = 28;
@@ -174,8 +171,8 @@ impl pallet_utility::Config for Test {
 }
 
 fn genesis() -> sp_io::TestExternalities {
-	let mut storage = frame_system::GenesisConfig::default()
-		.build_storage::<Test>()
+	let mut storage = frame_system::GenesisConfig::<Test>::default()
+		.build_storage()
 		.unwrap();
 
 	orml_tokens::GenesisConfig::<Test> {

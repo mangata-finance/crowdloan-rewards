@@ -17,16 +17,14 @@
 //! Unit testing
 
 use crate::*;
-use frame_support::dispatch::{DispatchError, Dispatchable};
 use frame_support::traits::tokens::currency::MultiTokenCurrency;
 
-use frame_support::{assert_err, assert_noop, assert_ok};
+use frame_support::{assert_err, assert_noop, assert_ok, traits::MultiTokenVestingSchedule};
 use mangata_types::TokenId;
 use mock::*;
-use pallet_vesting_mangata::MultiTokenVestingSchedule;
 use parity_scale_codec::Encode;
 use sp_core::Pair;
-use sp_runtime::{ModuleError, MultiSignature};
+use sp_runtime::{traits::Dispatchable, DispatchError, ModuleError, MultiSignature};
 
 type TokensOf<Test> = <Test as Config>::Tokens;
 

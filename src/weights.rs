@@ -107,7 +107,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn initialize_reward_vec(x: u32) -> Weight {
-		Weight::from_ref_time(143_109_000)
+		Weight::from_parts(143_109_000, 0)
 			// Standard Error: 21_000
 			.saturating_add((Weight::from_parts(72_298_000, 0)).saturating_mul(x as u64))
 			.saturating_add(RocksDbWeight::get().reads(8 as u64))

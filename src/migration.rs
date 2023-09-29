@@ -19,8 +19,8 @@ use super::*;
 
 pub mod v1 {
 	use super::*;
-	use frame_support::dispatch::GetStorageVersion;
 	use frame_support::pallet_prelude::*;
+	use frame_support::traits::GetStorageVersion;
 	use frame_support::traits::OnRuntimeUpgrade;
 
 	use sp_core::Get;
@@ -38,12 +38,10 @@ pub mod v1 {
 	>;
 
 	#[frame_support::storage_alias]
-	pub type CrowdloanAllocation<T: Config> =
-		StorageValue<Pallet<T>, mangata_types::Balance, ValueQuery>;
+	pub type CrowdloanAllocation<T: Config> = StorageValue<Pallet<T>, BalanceOf<T>, ValueQuery>;
 
 	#[frame_support::storage_alias]
-	pub type InitializedRewardAmount<T: Config> =
-		StorageValue<Pallet<T>, mangata_types::Balance, ValueQuery>;
+	pub type InitializedRewardAmount<T: Config> = StorageValue<Pallet<T>, BalanceOf<T>, ValueQuery>;
 
 	#[frame_support::storage_alias]
 	pub type TotalContributors<T: Config> = StorageValue<Pallet<T>, u32, ValueQuery>;
