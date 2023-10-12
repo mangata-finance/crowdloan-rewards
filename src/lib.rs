@@ -61,7 +61,24 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::pallet;
+use frame_support::pallet_prelude::*;
+use frame_support::traits::MultiTokenCurrency;
+use frame_support::traits::MultiTokenVestingLocks;
+use frame_support::traits::OnRuntimeUpgrade;
+use frame_system::pallet_prelude::*;
+use orml_tokens::MultiTokenCurrencyExtended;
+use sp_core::crypto::AccountId32;
+use sp_runtime::traits::{
+	AtLeast32BitUnsigned, BlockNumberProvider, CheckedSub, Saturating, Verify,
+};
+use sp_runtime::{MultiSignature, Perbill};
+use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec;
+use sp_std::vec::Vec;
+
 pub use pallet::*;
+pub use weights::WeightInfo;
+
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod benchmarks;
 #[cfg(test)]
@@ -71,7 +88,6 @@ mod tests;
 pub mod weights;
 
 mod migration;
-pub use weights::WeightInfo;
 
 #[macro_export]
 macro_rules! log {
@@ -83,24 +99,16 @@ macro_rules! log {
 	};
 }
 
+pub type BalanceOf<T> =
+	<<T as Config>::Tokens as MultiTokenCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+
+pub type TokenIdOf<T> = <<T as Config>::Tokens as MultiTokenCurrency<
+	<T as frame_system::Config>::AccountId,
+>>::CurrencyId;
+
 #[pallet]
 pub mod pallet {
-
-	use crate::weights::WeightInfo;
-	use frame_support::pallet_prelude::*;
-	use frame_support::traits::MultiTokenCurrency;
-	use frame_support::traits::MultiTokenVestingLocks;
-	use frame_support::traits::OnRuntimeUpgrade;
-	use frame_system::pallet_prelude::*;
-	use orml_tokens::MultiTokenCurrencyExtended;
-	use sp_core::crypto::AccountId32;
-	use sp_runtime::traits::{
-		AtLeast32BitUnsigned, BlockNumberProvider, CheckedSub, Saturating, Verify,
-	};
-	use sp_runtime::{MultiSignature, Perbill};
-	use sp_std::collections::btree_map::BTreeMap;
-	use sp_std::vec;
-	use sp_std::vec::Vec;
+	use super::*;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -135,7 +143,7 @@ pub mod pallet {
 		type RewardAddressRelayVoteThreshold: Get<Perbill>;
 		/// MGA token Id
 		#[pallet::constant]
-		type NativeTokenId: Get<AssetIdOf<Self>>;
+		type NativeTokenId: Get<TokenIdOf<Self>>;
 		/// The currency in which the rewards will be paid (probably the parachain native currency)
 		type Tokens: MultiTokenCurrency<Self::AccountId>
 			+ MultiTokenCurrencyExtended<Self::AccountId>;
@@ -173,14 +181,6 @@ pub mod pallet {
 
 		type WeightInfo: WeightInfo;
 	}
-
-	pub type BalanceOf<T> = <<T as Config>::Tokens as MultiTokenCurrency<
-		<T as frame_system::Config>::AccountId,
-	>>::Balance;
-
-	pub type AssetIdOf<T> = <<T as Config>::Tokens as MultiTokenCurrency<
-		<T as frame_system::Config>::AccountId,
-	>>::CurrencyId;
 
 	/// Stores info about the rewards owed as well as how much has been vested so far.
 	/// For a primer on this kind of design, see the recipe on compounding interest
@@ -448,7 +448,7 @@ pub mod pallet {
 
 			// This ensures there was no prior initialization
 			ensure!(
-				initialized == false,
+				!initialized,
 				Error::<T>::RewardVecAlreadyInitialized
 			);
 
@@ -496,7 +496,7 @@ pub mod pallet {
 
 			if <Initialized<T>>::get() {
 				let zero: BalanceOf<T> = 0_u32.into();
-				<CrowdloanId<T>>::mutate(|val| *val = *val + 1);
+				<CrowdloanId<T>>::mutate(|val| *val += 1);
 				<Initialized<T>>::put(false);
 				<InitializedRewardAmount<T>>::insert(CrowdloanId::<T>::get(), zero);
 			}
@@ -524,7 +524,7 @@ pub mod pallet {
 			ensure_root(origin)?;
 			let initialized = <Initialized<T>>::get();
 			ensure!(
-				initialized == false,
+				!initialized,
 				Error::<T>::RewardVecAlreadyInitialized
 			);
 
@@ -555,8 +555,8 @@ pub mod pallet {
 			);
 
 			for (relay_account, native_account, reward) in &rewards {
-				if ClaimedRelayChainIds::<T>::get(CrowdloanId::<T>::get(), &relay_account).is_some()
-					|| UnassociatedContributions::<T>::get(CrowdloanId::<T>::get(), &relay_account)
+				if ClaimedRelayChainIds::<T>::get(CrowdloanId::<T>::get(), relay_account).is_some()
+					|| UnassociatedContributions::<T>::get(CrowdloanId::<T>::get(), relay_account)
 						.is_some()
 				{
 					// Dont fail as this is supposed to be called with batch calls and we

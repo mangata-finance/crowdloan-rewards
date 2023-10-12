@@ -21,11 +21,10 @@ use frame_support::{
 	traits::{Contains, Nothing, OnFinalize, OnInitialize, WithdrawReasons},
 	PalletId,
 };
-use frame_system::EnsureRoot;
-use mangata_types::{Amount, Balance, TokenId};
+use frame_system::{EnsureRoot, pallet_prelude::BlockNumberFor};
 use orml_traits::parameter_type_with_key;
 use sp_core::{ed25519, Pair, H256};
-use sp_io;
+
 use sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
 	BuildStorage, Perbill,
@@ -33,10 +32,11 @@ use sp_runtime::{
 use sp_std::convert::{From, TryInto};
 
 pub const MGA_TOKEN_ID: TokenId = 0;
-pub type BlockNumber = u64;
-pub type AccountId = u64;
+pub(crate) type AccountId = u64;
+pub(crate) type Balance = u128;
+pub(crate) type TokenId = u32;
+pub(crate) type Amount = i128;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 construct_runtime!(
@@ -80,10 +80,8 @@ impl frame_system::Config for Test {
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |currency_id: TokenId| -> Balance {
-		match currency_id {
-			_ => 0,
-		}
+	pub ExistentialDeposits: |_currency_id: TokenId| -> Balance {
+		0
 	};
 }
 
@@ -157,7 +155,7 @@ impl Config for Test {
 	// The origin that is allowed to change the reward
 	type RewardAddressChangeOrigin = EnsureRoot<Self::AccountId>;
 	type SignatureNetworkIdentifier = TestSigantureNetworkIdentifier;
-	type VestingBlockNumber = BlockNumber;
+	type VestingBlockNumber = BlockNumberFor<Test>;
 	type VestingBlockProvider = System;
 	type VestingProvider = Vesting;
 	type WeightInfo = ();
@@ -197,7 +195,7 @@ pub(crate) fn get_ed25519_pairs(num: u32) -> Vec<ed25519::Pair> {
 	let mut pairs = Vec::new();
 	for i in 0..num {
 		pairs.push(ed25519::Pair::from_seed(
-			(seed.clone() + i as u128)
+			(seed + i as u128)
 				.to_string()
 				.as_bytes()
 				.try_into()

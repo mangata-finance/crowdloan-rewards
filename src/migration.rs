@@ -19,7 +19,6 @@ use super::*;
 
 pub mod v1 {
 	use super::*;
-	use frame_support::pallet_prelude::*;
 	use frame_support::traits::GetStorageVersion;
 	use frame_support::traits::OnRuntimeUpgrade;
 

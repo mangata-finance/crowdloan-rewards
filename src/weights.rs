@@ -67,40 +67,40 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		Weight::from_parts(143_109_000, 0)
 			// Standard Error: 21_000
 			.saturating_add((Weight::from_parts(72_298_000, 0)).saturating_mul(x as u64))
-			.saturating_add(T::DbWeight::get().reads(8 as u64))
-			.saturating_add(T::DbWeight::get().reads((4 as u64).saturating_mul(x as u64)))
-			.saturating_add(T::DbWeight::get().writes(5 as u64))
-			.saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(x as u64)))
+			.saturating_add(T::DbWeight::get().reads(8_u64))
+			.saturating_add(T::DbWeight::get().reads(4_u64.saturating_mul(x as u64)))
+			.saturating_add(T::DbWeight::get().writes(5_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64.saturating_mul(x as u64)))
 	}
 	fn complete_initialization() -> Weight {
 		Weight::from_parts(51_047_000, 0)
-			.saturating_add(T::DbWeight::get().reads(6 as u64))
-			.saturating_add(T::DbWeight::get().writes(3 as u64))
+			.saturating_add(T::DbWeight::get().reads(6_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
 	fn set_crowdloan_allocation() -> Weight {
-		Weight::from_parts(147_000, 0).saturating_add(T::DbWeight::get().writes(1 as u64))
+		Weight::from_parts(147_000, 0).saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	fn claim() -> Weight {
 		Weight::from_parts(101_484_000, 0)
-			.saturating_add(T::DbWeight::get().reads(11 as u64))
-			.saturating_add(T::DbWeight::get().writes(5 as u64))
+			.saturating_add(T::DbWeight::get().reads(11_u64))
+			.saturating_add(T::DbWeight::get().writes(5_u64))
 	}
 	fn update_reward_address() -> Weight {
 		Weight::from_parts(59_051_000, 0)
-			.saturating_add(T::DbWeight::get().reads(6 as u64))
-			.saturating_add(T::DbWeight::get().writes(4 as u64))
+			.saturating_add(T::DbWeight::get().reads(6_u64))
+			.saturating_add(T::DbWeight::get().writes(4_u64))
 	}
 	fn associate_native_identity() -> Weight {
 		Weight::from_parts(152_997_000, 0)
-			.saturating_add(T::DbWeight::get().reads(9 as u64))
-			.saturating_add(T::DbWeight::get().writes(7 as u64))
+			.saturating_add(T::DbWeight::get().reads(9_u64))
+			.saturating_add(T::DbWeight::get().writes(7_u64))
 	}
 	fn change_association_with_relay_keys(x: u32) -> Weight {
 		Weight::from_parts(0, 0)
 			// Standard Error: 7_000
 			.saturating_add((Weight::from_parts(47_373_000, 0)).saturating_mul(x as u64))
-			.saturating_add(T::DbWeight::get().reads(6 as u64))
-			.saturating_add(T::DbWeight::get().writes(4 as u64))
+			.saturating_add(T::DbWeight::get().reads(6_u64))
+			.saturating_add(T::DbWeight::get().writes(4_u64))
 	}
 }
 
@@ -110,39 +110,39 @@ impl WeightInfo for () {
 		Weight::from_parts(143_109_000, 0)
 			// Standard Error: 21_000
 			.saturating_add((Weight::from_parts(72_298_000, 0)).saturating_mul(x as u64))
-			.saturating_add(RocksDbWeight::get().reads(8 as u64))
-			.saturating_add(RocksDbWeight::get().reads((4 as u64).saturating_mul(x as u64)))
-			.saturating_add(RocksDbWeight::get().writes(5 as u64))
-			.saturating_add(RocksDbWeight::get().writes((3 as u64).saturating_mul(x as u64)))
+			.saturating_add(RocksDbWeight::get().reads(8_u64))
+			.saturating_add(RocksDbWeight::get().reads(4_u64.saturating_mul(x as u64)))
+			.saturating_add(RocksDbWeight::get().writes(5_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64.saturating_mul(x as u64)))
 	}
 	fn set_crowdloan_allocation() -> Weight {
-		Weight::from_parts(147_000, 0).saturating_add(RocksDbWeight::get().writes(1 as u64))
+		Weight::from_parts(147_000, 0).saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	fn complete_initialization() -> Weight {
 		Weight::from_parts(51_047_000, 0)
-			.saturating_add(RocksDbWeight::get().reads(6 as u64))
-			.saturating_add(RocksDbWeight::get().writes(3 as u64))
+			.saturating_add(RocksDbWeight::get().reads(6_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
 	fn claim() -> Weight {
 		Weight::from_parts(101_484_000, 0)
-			.saturating_add(RocksDbWeight::get().reads(11 as u64))
-			.saturating_add(RocksDbWeight::get().writes(5 as u64))
+			.saturating_add(RocksDbWeight::get().reads(11_u64))
+			.saturating_add(RocksDbWeight::get().writes(5_u64))
 	}
 	fn update_reward_address() -> Weight {
 		Weight::from_parts(59_051_000, 0)
-			.saturating_add(RocksDbWeight::get().reads(6 as u64))
-			.saturating_add(RocksDbWeight::get().writes(4 as u64))
+			.saturating_add(RocksDbWeight::get().reads(6_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
 	fn associate_native_identity() -> Weight {
 		Weight::from_parts(152_997_000, 0)
-			.saturating_add(RocksDbWeight::get().reads(9 as u64))
-			.saturating_add(RocksDbWeight::get().writes(7 as u64))
+			.saturating_add(RocksDbWeight::get().reads(9_u64))
+			.saturating_add(RocksDbWeight::get().writes(7_u64))
 	}
 	fn change_association_with_relay_keys(x: u32) -> Weight {
 		Weight::from_parts(0, 0)
 			// Standard Error: 7_000
 			.saturating_add((Weight::from_parts(47_373_000, 0)).saturating_mul(x as u64))
-			.saturating_add(RocksDbWeight::get().reads(6 as u64))
-			.saturating_add(RocksDbWeight::get().writes(4 as u64))
+			.saturating_add(RocksDbWeight::get().reads(6_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
 }

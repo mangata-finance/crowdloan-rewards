@@ -20,7 +20,6 @@ use crate::*;
 use frame_support::traits::tokens::currency::MultiTokenCurrency;
 
 use frame_support::{assert_err, assert_noop, assert_ok, traits::MultiTokenVestingSchedule};
-use mangata_types::TokenId;
 use mock::*;
 use parity_scale_codec::Encode;
 use sp_core::Pair;
@@ -31,6 +30,11 @@ type TokensOf<Test> = <Test as Config>::Tokens;
 // Constant that reflects the desired vesting period for the tests
 // Most tests complete initialization passing initRelayBlock + VESTING as the endRelayBlock
 const VESTING: u64 = 8;
+
+const ALICE: AccountId = 1;
+const ALICE_NEW: AccountId = 11;
+const BOB: AccountId = 2;
+const BOB_NEW: AccountId = 12;
 
 fn transferable_balance(who: &u64, token_id: TokenId) -> u128 {
 	TokensOf::<Test>::free_balance(token_id, who) - Vesting::vesting_balance(who, token_id).unwrap()
@@ -46,8 +50,8 @@ fn geneses() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(2), 500u32.into()),
+				([1u8; 32], Some(1), 500u32.into()),
+				([2u8; 32], Some(2), 500u32.into()),
 				(pairs[0].public().into(), None, 500u32.into()),
 				(pairs[1].public().into(), None, 500u32.into()),
 				(pairs[2].public().into(), None, 500u32.into())
@@ -62,22 +66,22 @@ fn geneses() {
 		assert_eq!(Crowdloan::total_contributors(), 5);
 
 		// accounts_payable
-		assert!(Crowdloan::accounts_payable(0, &1).is_some());
-		assert!(Crowdloan::accounts_payable(0, &2).is_some());
-		assert!(Crowdloan::accounts_payable(0, &3).is_none());
-		assert!(Crowdloan::accounts_payable(0, &4).is_none());
-		assert!(Crowdloan::accounts_payable(0, &5).is_none());
+		assert!(Crowdloan::accounts_payable(0, 1).is_some());
+		assert!(Crowdloan::accounts_payable(0, 2).is_some());
+		assert!(Crowdloan::accounts_payable(0, 3).is_none());
+		assert!(Crowdloan::accounts_payable(0, 4).is_none());
+		assert!(Crowdloan::accounts_payable(0, 5).is_none());
 
 		// claimed address existence
-		assert!(Crowdloan::claimed_relay_chain_ids(0, &[1u8; 32]).is_some());
-		assert!(Crowdloan::claimed_relay_chain_ids(0, &[2u8; 32]).is_some());
+		assert!(Crowdloan::claimed_relay_chain_ids(0, [1u8; 32]).is_some());
+		assert!(Crowdloan::claimed_relay_chain_ids(0, [2u8; 32]).is_some());
 		assert!(Crowdloan::claimed_relay_chain_ids(0, pairs[0].public().as_array_ref()).is_none());
 		assert!(Crowdloan::claimed_relay_chain_ids(0, pairs[1].public().as_array_ref()).is_none());
 		assert!(Crowdloan::claimed_relay_chain_ids(0, pairs[2].public().as_array_ref()).is_none());
 
 		// unassociated_contributions
-		assert!(Crowdloan::unassociated_contributions(0, &[1u8; 32]).is_none());
-		assert!(Crowdloan::unassociated_contributions(0, &[2u8; 32]).is_none());
+		assert!(Crowdloan::unassociated_contributions(0, [1u8; 32]).is_none());
+		assert!(Crowdloan::unassociated_contributions(0, [2u8; 32]).is_none());
 		assert!(
 			Crowdloan::unassociated_contributions(0, pairs[0].public().as_array_ref()).is_some()
 		);
@@ -106,8 +110,8 @@ fn proving_assignation_works() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(2), 500u32.into()),
+				([1u8; 32], Some(1), 500u32.into()),
+				([2u8; 32], Some(2), 500u32.into()),
 				(pairs[0].public().into(), None, 500u32.into()),
 				(pairs[1].public().into(), None, 500u32.into()),
 				(pairs[2].public().into(), None, 500u32.into())
@@ -119,9 +123,9 @@ fn proving_assignation_works() {
 			init_block + VESTING
 		));
 		// 4 is not payable first
-		assert!(Crowdloan::accounts_payable(0, &3).is_none());
+		assert!(Crowdloan::accounts_payable(0, 3).is_none());
 		assert_eq!(
-			Crowdloan::accounts_payable(0, &1)
+			Crowdloan::accounts_payable(0, 1)
 				.unwrap()
 				.contributed_relay_addresses,
 			vec![[1u8; 32]]
@@ -170,9 +174,9 @@ fn proving_assignation_works() {
 		);
 
 		// now three is payable
-		assert!(Crowdloan::accounts_payable(0, &3).is_some());
+		assert!(Crowdloan::accounts_payable(0, 3).is_some());
 		assert_eq!(
-			Crowdloan::accounts_payable(0, &3)
+			Crowdloan::accounts_payable(0, 3)
 				.unwrap()
 				.contributed_relay_addresses,
 			vec![*pairs[0].public().as_array_ref()]
@@ -202,8 +206,8 @@ fn initializing_multi_relay_to_single_native_address_works() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(1), 500u32.into()),
+				([1u8; 32], Some(1), 500u32.into()),
+				([2u8; 32], Some(1), 500u32.into()),
 				(pairs[0].public().into(), None, 500u32.into()),
 				(pairs[1].public().into(), None, 500u32.into()),
 				(pairs[2].public().into(), None, 500u32.into())
@@ -215,9 +219,9 @@ fn initializing_multi_relay_to_single_native_address_works() {
 			init_block + VESTING
 		));
 		// 1 is payable
-		assert!(Crowdloan::accounts_payable(0, &1).is_some());
+		assert!(Crowdloan::accounts_payable(0, 1).is_some());
 		assert_eq!(
-			Crowdloan::accounts_payable(0, &1)
+			Crowdloan::accounts_payable(0, 1)
 				.unwrap()
 				.contributed_relay_addresses,
 			vec![[1u8; 32], [2u8; 32]]
@@ -226,7 +230,7 @@ fn initializing_multi_relay_to_single_native_address_works() {
 		roll_to(3);
 		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(1), None));
 		assert_eq!(
-			Crowdloan::accounts_payable(0, &1).unwrap().claimed_reward,
+			Crowdloan::accounts_payable(0, 1).unwrap().claimed_reward,
 			1000
 		);
 		assert_noop!(
@@ -249,8 +253,8 @@ fn paying_works_step_by_step() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(2), 500u32.into()),
+				([1u8; 32], Some(1), 500u32.into()),
+				([2u8; 32], Some(2), 500u32.into()),
 				(pairs[0].public().into(), None, 500u32.into()),
 				(pairs[1].public().into(), None, 500u32.into()),
 				(pairs[2].public().into(), None, 500u32.into())
@@ -262,10 +266,10 @@ fn paying_works_step_by_step() {
 			init_block + VESTING
 		));
 		// 1 is payable
-		assert!(Crowdloan::accounts_payable(0, &1).is_some());
+		assert!(Crowdloan::accounts_payable(0, 1).is_some());
 		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(1), None));
 		assert_eq!(
-			Crowdloan::accounts_payable(0, &1).unwrap().claimed_reward,
+			Crowdloan::accounts_payable(0, 1).unwrap().claimed_reward,
 			500
 		);
 		assert_eq!(transferable_balance(&1, 0), 100);
@@ -310,8 +314,8 @@ fn paying_works_after_unclaimed_period() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(2), 500u32.into()),
+				([1u8; 32], Some(1), 500u32.into()),
+				([2u8; 32], Some(2), 500u32.into()),
 				(pairs[0].public().into(), None, 500u32.into()),
 				(pairs[1].public().into(), None, 500u32.into()),
 				(pairs[2].public().into(), None, 500u32.into())
@@ -324,11 +328,11 @@ fn paying_works_after_unclaimed_period() {
 		));
 
 		// 1 is payable
-		assert!(Crowdloan::accounts_payable(0, &1).is_some());
+		assert!(Crowdloan::accounts_payable(0, 1).is_some());
 		roll_to(3);
 		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(1), None));
 		assert_eq!(
-			Crowdloan::accounts_payable(0, &1).unwrap().claimed_reward,
+			Crowdloan::accounts_payable(0, 1).unwrap().claimed_reward,
 			500
 		);
 		assert_noop!(
@@ -373,8 +377,8 @@ fn paying_late_joiner_works() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(2), 500u32.into()),
+				([1u8; 32], Some(1), 500u32.into()),
+				([2u8; 32], Some(2), 500u32.into()),
 				(pairs[0].public().into(), None, 500u32.into()),
 				(pairs[1].public().into(), None, 500u32.into()),
 				(pairs[2].public().into(), None, 500u32.into())
@@ -395,7 +399,7 @@ fn paying_late_joiner_works() {
 		));
 		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(3), None));
 		assert_eq!(
-			Crowdloan::accounts_payable(0, &3).unwrap().claimed_reward,
+			Crowdloan::accounts_payable(0, 3).unwrap().claimed_reward,
 			500
 		);
 		let expected = vec![
@@ -416,8 +420,8 @@ fn update_address_works() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(2), 500u32.into()),
+				([1u8; 32], Some(1), 500u32.into()),
+				([2u8; 32], Some(2), 500u32.into()),
 				(pairs[0].public().into(), None, 500u32.into()),
 				(pairs[1].public().into(), None, 500u32.into()),
 				(pairs[2].public().into(), None, 500u32.into())
@@ -464,8 +468,8 @@ fn update_address_with_existing_address_fails() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(2), 500u32.into()),
+				([1u8; 32], Some(1), 500u32.into()),
+				([2u8; 32], Some(2), 500u32.into()),
 				(pairs[0].public().into(), None, 500u32.into()),
 				(pairs[1].public().into(), None, 500u32.into()),
 				(pairs[2].public().into(), None, 500u32.into())
@@ -497,8 +501,8 @@ fn update_address_with_existing_with_multi_address_works() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(1), 500u32.into()),
+				([1u8; 32], Some(1), 500u32.into()),
+				([2u8; 32], Some(1), 500u32.into()),
 				(pairs[0].public().into(), None, 500u32.into()),
 				(pairs[1].public().into(), None, 500u32.into()),
 				(pairs[2].public().into(), None, 500u32.into())
@@ -520,11 +524,11 @@ fn update_address_with_existing_with_multi_address_works() {
 			None
 		));
 		assert_eq!(
-			Crowdloan::accounts_payable(0, &2).unwrap().claimed_reward,
+			Crowdloan::accounts_payable(0, 2).unwrap().claimed_reward,
 			1000
 		);
 		assert_eq!(
-			Crowdloan::accounts_payable(0, &2).unwrap().total_reward,
+			Crowdloan::accounts_payable(0, 2).unwrap().total_reward,
 			1000
 		);
 
@@ -546,8 +550,8 @@ fn initialize_new_addresses() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(2), 500u32.into()),
+				([1u8; 32], Some(1), 500u32.into()),
+				([2u8; 32], Some(2), 500u32.into()),
 				(pairs[0].public().into(), None, 500u32.into()),
 				(pairs[1].public().into(), None, 500u32.into()),
 				(pairs[2].public().into(), None, 500u32.into())
@@ -559,13 +563,13 @@ fn initialize_new_addresses() {
 			init_block + VESTING
 		));
 
-		assert_eq!(Crowdloan::initialized(), true);
+		assert!(Crowdloan::initialized());
 
 		roll_to(4);
 		assert_noop!(
 			Crowdloan::initialize_reward_vec(
 				RuntimeOrigin::root(),
-				vec![([1u8; 32].into(), Some(1), 500u32.into())]
+				vec![([1u8; 32], Some(1), 500u32.into())]
 			),
 			Error::<Test>::RewardVecAlreadyInitialized,
 		);
@@ -593,8 +597,8 @@ fn initialize_new_addresses_not_matching_funds() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				([1u8; 32].into(), Some(1), 500u32.into()),
-				([2u8; 32].into(), Some(2), 500u32.into()),
+				([1u8; 32], Some(1), 500u32.into()),
+				([2u8; 32], Some(2), 500u32.into()),
 				(pairs[0].public().into(), None, 500u32.into()),
 				(pairs[1].public().into(), None, 995u32.into()),
 			]
@@ -619,10 +623,10 @@ fn initialize_new_addresses_with_batch() {
 		assert_ok!(mock::RuntimeCall::Utility(UtilityCall::batch_all {
 			calls: vec![
 				mock::RuntimeCall::Crowdloan(crate::Call::initialize_reward_vec {
-					rewards: vec![([4u8; 32].into(), Some(3), 1250)],
+					rewards: vec![([4u8; 32], Some(3), 1250)],
 				}),
 				mock::RuntimeCall::Crowdloan(crate::Call::initialize_reward_vec {
-					rewards: vec![([5u8; 32].into(), Some(1), 1250)],
+					rewards: vec![([5u8; 32], Some(1), 1250)],
 				})
 			]
 		})
@@ -643,7 +647,7 @@ fn initialize_new_addresses_with_batch() {
 		assert_ok!(mock::RuntimeCall::Utility(UtilityCall::batch {
 			calls: vec![mock::RuntimeCall::Crowdloan(
 				crate::Call::initialize_reward_vec {
-					rewards: vec![([4u8; 32].into(), Some(3), 500)]
+					rewards: vec![([4u8; 32], Some(3), 500)]
 				}
 			)]
 		})
@@ -674,14 +678,14 @@ fn floating_point_arithmetic_works() {
 		assert_ok!(mock::RuntimeCall::Utility(UtilityCall::batch_all {
 			calls: vec![
 				mock::RuntimeCall::Crowdloan(crate::Call::initialize_reward_vec {
-					rewards: vec![([4u8; 32].into(), Some(1), 1190)]
+					rewards: vec![([4u8; 32], Some(1), 1190)]
 				}),
 				mock::RuntimeCall::Crowdloan(crate::Call::initialize_reward_vec {
-					rewards: vec![([5u8; 32].into(), Some(2), 1185)]
+					rewards: vec![([5u8; 32], Some(2), 1185)]
 				}),
 				// We will work with this. This has 100/8=12.5 payable per block
 				mock::RuntimeCall::Crowdloan(crate::Call::initialize_reward_vec {
-					rewards: vec![([3u8; 32].into(), Some(3), 125)]
+					rewards: vec![([3u8; 32], Some(3), 125)]
 				})
 			]
 		})
@@ -694,7 +698,7 @@ fn floating_point_arithmetic_works() {
 		assert_eq!(Crowdloan::total_contributors(), 3);
 
 		assert_eq!(
-			Crowdloan::accounts_payable(0, &3).unwrap().claimed_reward,
+			Crowdloan::accounts_payable(0, 3).unwrap().claimed_reward,
 			0
 		);
 
@@ -719,15 +723,15 @@ fn test_initialization_errors() {
 			Crowdloan::initialize_reward_vec(
 				RuntimeOrigin::root(),
 				vec![
-					([1u8; 32].into(), Some(1), 1),
-					([2u8; 32].into(), Some(2), 1),
-					([3u8; 32].into(), Some(3), 1),
-					([4u8; 32].into(), Some(4), 1),
-					([5u8; 32].into(), Some(5), 1),
-					([6u8; 32].into(), Some(6), 1),
-					([7u8; 32].into(), Some(7), 1),
-					([8u8; 32].into(), Some(8), 1),
-					([9u8; 32].into(), Some(9), 1)
+					([1u8; 32], Some(1), 1),
+					([2u8; 32], Some(2), 1),
+					([3u8; 32], Some(3), 1),
+					([4u8; 32], Some(4), 1),
+					([5u8; 32], Some(5), 1),
+					([6u8; 32], Some(6), 1),
+					([7u8; 32], Some(7), 1),
+					([8u8; 32], Some(8), 1),
+					([9u8; 32], Some(9), 1)
 				]
 			),
 			Error::<Test>::TooManyContributors
@@ -737,7 +741,7 @@ fn test_initialization_errors() {
 		assert_noop!(
 			Crowdloan::initialize_reward_vec(
 				RuntimeOrigin::root(),
-				vec![([1u8; 32].into(), Some(1), pot + 1)]
+				vec![([1u8; 32], Some(1), pot + 1)]
 			),
 			Error::<Test>::BatchBeyondFundPot
 		);
@@ -745,13 +749,13 @@ fn test_initialization_errors() {
 		// Dont fill rewards
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
-			vec![([1u8; 32].into(), Some(1), pot - 1)]
+			vec![([1u8; 32], Some(1), pot - 1)]
 		));
 
 		// Fill rewards
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
-			vec![([2u8; 32].into(), Some(2), 1)]
+			vec![([2u8; 32], Some(2), 1)]
 		));
 
 		// Insert a non-valid vesting period
@@ -809,7 +813,7 @@ fn test_relay_signatures_can_change_reward_addresses() {
 			init_block + VESTING
 		));
 
-		let reward_info = Crowdloan::accounts_payable(0, &1).unwrap();
+		let reward_info = Crowdloan::accounts_payable(0, 1).unwrap();
 
 		// We should have all of them as contributors
 		for pair in pairs.clone() {
@@ -857,10 +861,10 @@ fn test_relay_signatures_can_change_reward_addresses() {
 		));
 
 		// 1 should no longer be payable
-		assert!(Crowdloan::accounts_payable(0, &1).is_none());
+		assert!(Crowdloan::accounts_payable(0, 1).is_none());
 
 		// 2 should be now payable
-		let reward_info_2 = Crowdloan::accounts_payable(0, &2).unwrap();
+		let reward_info_2 = Crowdloan::accounts_payable(0, 2).unwrap();
 
 		// The reward info should be identical
 		assert_eq!(reward_info, reward_info_2);
@@ -893,8 +897,8 @@ fn test_restart_crowdloan() {
 			init_block + VESTING
 		));
 
-		assert!(Crowdloan::accounts_payable(0, &1).is_some());
-		assert!(Crowdloan::accounts_payable(0, &2).is_some());
+		assert!(Crowdloan::accounts_payable(0, 1).is_some());
+		assert!(Crowdloan::accounts_payable(0, 2).is_some());
 
 		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(1), None));
 
@@ -930,7 +934,6 @@ fn test_claim_rewards_from_consecutive_crowdloans_with_different_schedules() {
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
 		let second_crowdloan_period = (101u64, 109u64);
-		let ALICE = 1u64;
 
 		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 2500u128).unwrap();
 		// We will have all pointint to the same reward account
@@ -978,14 +981,14 @@ fn test_claim_rewards_from_consecutive_crowdloans_with_different_schedules() {
 		assert_eq!(transferable_balance(&ALICE, 0), 1000);
 
 		roll_to(first_crowdloan_period.0 + 1);
-		assert_eq!(transferable_balance(&ALICE, 0), 1000 + (2000 / 8) * 1);
+		assert_eq!(transferable_balance(&ALICE, 0), 1000 + (2000 / 8));
 		roll_to(first_crowdloan_period.0 + 2);
 		assert_eq!(transferable_balance(&ALICE, 0), 1000 + (2000 / 8) * 2);
 		roll_to(first_crowdloan_period.1 + 1);
 		assert_eq!(transferable_balance(&ALICE, 0), 3000);
 
 		roll_to(second_crowdloan_period.0 + 1);
-		assert_eq!(transferable_balance(&ALICE, 0), 3000 + (2000 / 8) * 1);
+		assert_eq!(transferable_balance(&ALICE, 0), 3000 + (2000 / 8));
 		roll_to(second_crowdloan_period.0 + 2);
 		assert_eq!(transferable_balance(&ALICE, 0), 3000 + (2000 / 8) * 2);
 		roll_to(second_crowdloan_period.1 + 1);
@@ -999,7 +1002,6 @@ fn test_claim_rewards_from_consecutive_crowdloans_with_overlapping_schedules() {
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
 		let second_crowdloan_period = (5u64, 13u64);
-		let ALICE = 1u64;
 
 		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 2500u128).unwrap();
 		// We will have all pointint to the same reward account
@@ -1048,23 +1050,23 @@ fn test_claim_rewards_from_consecutive_crowdloans_with_overlapping_schedules() {
 		roll_to(2);
 		assert_eq!(
 			transferable_balance(&ALICE, 0),
-			1000 + (2000 / 8) * 1 + (2000 / 8) * 0
+			1000 + (2000 / 8)
 		);
 		roll_to(3);
 		assert_eq!(
 			transferable_balance(&ALICE, 0),
-			1000 + (2000 / 8) * 2 + (2000 / 8) * 0
+			1000 + (2000 / 8) * 2
 		);
 		roll_to(4);
 		assert_eq!(
 			transferable_balance(&ALICE, 0),
-			1000 + (2000 / 8) * 3 + (2000 / 8) * 0
+			1000 + (2000 / 8) * 3
 		);
 
 		roll_to(6);
 		assert_eq!(
 			transferable_balance(&ALICE, 0),
-			1000 + (2000 / 8) * 5 + (2000 / 8) * 1
+			1000 + (2000 / 8) * 5 + (2000 / 8)
 		);
 		roll_to(7);
 		assert_eq!(
@@ -1082,7 +1084,6 @@ fn change_crowdloan_allocation_before_finalization() {
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
 		let _second_crowdloan_period = (5u64, 13u64);
-		let ALICE = 1u64;
 
 		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 2500u128).unwrap();
 		// We will have all pointint to the same reward account
@@ -1138,7 +1139,6 @@ fn change_crowdloan_allocation_before_finalization_to_lower_value_than_initializ
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
 		let _second_crowdloan_period = (5u64, 13u64);
-		let ALICE = 1u64;
 
 		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 2500u128).unwrap();
 		// We will have all pointint to the same reward account
@@ -1185,7 +1185,6 @@ fn track_total_crowdloan_contributors_for_each_crowdloan_separately() {
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
 		let _second_crowdloan_period = (5u64, 13u64);
-		let ALICE = 1u64;
 
 		// FIRST CROWDLOAN
 		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 500u128).unwrap();
@@ -1222,11 +1221,6 @@ fn update_rewards_address_for_past_crwdloans() {
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
 		let _second_crowdloan_period = (5u64, 13u64);
-		let ALICE = 1u64;
-		let ALICE_NEW = 11u64;
-
-		let BOB = 2u64;
-		let BOB_NEW = 12u64;
 
 		// FIRST CROWDLOAN
 		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 500u128).unwrap();
@@ -1288,8 +1282,6 @@ fn test_claim_previous_crowdloan_rewards_during_initialization_of_another_one() 
 		let pairs = get_ed25519_pairs(2);
 		let first_crowdloan_period = (1u64, 9u64);
 		let _second_crowdloan_period = (5u64, 13u64);
-		let ALICE = 1u64;
-		let BOB = 2u64;
 
 		// FIRST CROWDLOAN
 		Crowdloan::set_crowdloan_allocation(RuntimeOrigin::root(), 500u128).unwrap();
@@ -1321,7 +1313,7 @@ fn test_claim_previous_crowdloan_rewards_during_initialization_of_another_one() 
 }
 
 #[test]
-fn reproduce_MGX654_bug_report() {
+fn reproduce_mgx654_bug_report() {
 	empty().execute_with(|| {
 		let pairs = get_ed25519_pairs(3);
 		const ALICE: u64 = 1u64;
@@ -1338,17 +1330,17 @@ fn reproduce_MGX654_bug_report() {
 				(
 					pairs[0].public().into(),
 					Some(ALICE),
-					SINGLE_USER_REWARDS.into()
+					SINGLE_USER_REWARDS
 				),
 				(
 					pairs[1].public().into(),
 					Some(BOB),
-					SINGLE_USER_REWARDS.into()
+					SINGLE_USER_REWARDS
 				),
 				(
 					pairs[2].public().into(),
 					Some(CHARLIE),
-					SINGLE_USER_REWARDS.into()
+					SINGLE_USER_REWARDS
 				),
 			],
 		));
