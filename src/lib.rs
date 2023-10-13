@@ -70,7 +70,6 @@ pub(crate) mod mock;
 mod tests;
 pub mod weights;
 
-mod migration;
 pub use weights::WeightInfo;
 
 #[macro_export]
