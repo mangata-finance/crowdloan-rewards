@@ -132,7 +132,7 @@ pub mod v1 {
 		}
 
 		#[cfg(feature = "try-runtime")]
-		fn pre_upgrade() -> Result<sp_std::vec::Vec<u8>, &'static str> {
+		fn pre_upgrade() -> Result<sp_std::vec::Vec<u8>, TryRuntimeError> {
 			log!(info, "Crowdloan::pre_upgrade start");
 
 			assert_eq!(Pallet::<T>::on_chain_storage_version(), 0);
@@ -144,7 +144,7 @@ pub mod v1 {
 		}
 
 		#[cfg(feature = "try-runtime")]
-		fn post_upgrade(_state: sp_std::vec::Vec<u8>) -> Result<(), &'static str> {
+		fn post_upgrade(_state: sp_std::vec::Vec<u8>) -> Result<(), TryRuntimeError> {
 			const DEFAULT_CROWDLOAN_ID: u32 = 0u32;
 			log!(info, "Crowdlon::post_upgrade start");
 			assert_eq!(Pallet::<T>::current_storage_version(), 1);

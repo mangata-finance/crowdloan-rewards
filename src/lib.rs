@@ -78,6 +78,8 @@ use sp_std::vec::Vec;
 
 pub use pallet::*;
 pub use weights::WeightInfo;
+#[cfg(feature = "try-runtime")]
+pub use sp_runtime::TryRuntimeError;
 
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod benchmarks;
@@ -197,8 +199,8 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		#[cfg(feature = "try-runtime")]
-		fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
-			crate::migration::v1::MigrateToV1::<T>::pre_upgrade()
+		fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
+			Ok(crate::migration::v1::MigrateToV1::<T>::pre_upgrade()?)
 		}
 
 		fn on_runtime_upgrade() -> Weight {
@@ -206,7 +208,7 @@ pub mod pallet {
 		}
 
 		#[cfg(feature = "try-runtime")]
-		fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
+		fn post_upgrade(state: Vec<u8>) -> Result<(), TryRuntimeError> {
 			crate::migration::v1::MigrateToV1::<T>::post_upgrade(state)
 		}
 	}
