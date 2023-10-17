@@ -200,7 +200,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
-			Ok(crate::migration::v1::MigrateToV1::<T>::pre_upgrade()?)
+			crate::migration::v1::MigrateToV1::<T>::pre_upgrade()
 		}
 
 		fn on_runtime_upgrade() -> Weight {

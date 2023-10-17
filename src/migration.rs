@@ -121,7 +121,8 @@ pub mod v1 {
 				crate::pallet::CrowdloanPeriod::<T>::insert(DEFAULT_CROWDLOAN_ID, (init, end));
 
 				log!(info, "Migrated entries: {}", counter);
-				T::DbWeight::get().reads_writes(counter, writes_counter + counter + 2)
+				current.put::<Pallet<T>>();
+				T::DbWeight::get().reads_writes(counter, writes_counter + counter + 2 + 1)
 			} else {
 				log!(
 					info,

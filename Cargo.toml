@@ -32,12 +32,13 @@ orml-traits = { git = "https://github.com/mangata-finance/open-runtime-module-li
 [features]
 default = ["std"]
 std = [
-    "frame-benchmarking/std",
+    "frame-benchmarking?/std",
     "frame-support/std",
     "frame-system/std",
     "log/std",
     "mangata-types/std",
     "orml-tokens/std",
+    "orml-traits/std",
     "pallet-utility/std",
     "pallet-vesting-mangata/std",
     "parity-scale-codec/std",
@@ -50,9 +51,14 @@ std = [
 ]
 runtime-benchmarks = [
     "ed25519-dalek",
-    "frame-benchmarking",
+    "frame-benchmarking/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
     "sp-trie",
 ]
 
-try-runtime = ["frame-system/try-runtime", "frame-support/try-runtime", "pallet-vesting-mangata/try-runtime"]
+try-runtime = [
+    "frame-system/try-runtime",
+    "frame-support/try-runtime",
+    "pallet-vesting-mangata/try-runtime",
+    "sp-runtime/try-runtime",
+]
