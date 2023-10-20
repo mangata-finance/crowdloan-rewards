@@ -21,7 +21,7 @@ use frame_support::{
 	traits::{Contains, Nothing, OnFinalize, OnInitialize, WithdrawReasons},
 	PalletId,
 };
-use frame_system::{EnsureRoot, pallet_prelude::BlockNumberFor};
+use frame_system::{pallet_prelude::BlockNumberFor, EnsureRoot};
 use orml_traits::parameter_type_with_key;
 use sp_core::{ed25519, Pair, H256};
 

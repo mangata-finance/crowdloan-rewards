@@ -697,10 +697,7 @@ fn floating_point_arithmetic_works() {
 		));
 		assert_eq!(Crowdloan::total_contributors(), 3);
 
-		assert_eq!(
-			Crowdloan::accounts_payable(0, 3).unwrap().claimed_reward,
-			0
-		);
+		assert_eq!(Crowdloan::accounts_payable(0, 3).unwrap().claimed_reward, 0);
 
 		assert_ok!(Crowdloan::claim(RuntimeOrigin::signed(3), None));
 
@@ -1048,20 +1045,11 @@ fn test_claim_rewards_from_consecutive_crowdloans_with_overlapping_schedules() {
 		assert_eq!(transferable_balance(&ALICE, 0), 1000);
 
 		roll_to(2);
-		assert_eq!(
-			transferable_balance(&ALICE, 0),
-			1000 + (2000 / 8)
-		);
+		assert_eq!(transferable_balance(&ALICE, 0), 1000 + (2000 / 8));
 		roll_to(3);
-		assert_eq!(
-			transferable_balance(&ALICE, 0),
-			1000 + (2000 / 8) * 2
-		);
+		assert_eq!(transferable_balance(&ALICE, 0), 1000 + (2000 / 8) * 2);
 		roll_to(4);
-		assert_eq!(
-			transferable_balance(&ALICE, 0),
-			1000 + (2000 / 8) * 3
-		);
+		assert_eq!(transferable_balance(&ALICE, 0), 1000 + (2000 / 8) * 3);
 
 		roll_to(6);
 		assert_eq!(
@@ -1327,21 +1315,9 @@ fn reproduce_mgx654_bug_report() {
 		assert_ok!(Crowdloan::initialize_reward_vec(
 			RuntimeOrigin::root(),
 			vec![
-				(
-					pairs[0].public().into(),
-					Some(ALICE),
-					SINGLE_USER_REWARDS
-				),
-				(
-					pairs[1].public().into(),
-					Some(BOB),
-					SINGLE_USER_REWARDS
-				),
-				(
-					pairs[2].public().into(),
-					Some(CHARLIE),
-					SINGLE_USER_REWARDS
-				),
+				(pairs[0].public().into(), Some(ALICE), SINGLE_USER_REWARDS),
+				(pairs[1].public().into(), Some(BOB), SINGLE_USER_REWARDS),
+				(pairs[2].public().into(), Some(CHARLIE), SINGLE_USER_REWARDS),
 			],
 		));
 

@@ -77,9 +77,9 @@ use sp_std::vec;
 use sp_std::vec::Vec;
 
 pub use pallet::*;
-pub use weights::WeightInfo;
 #[cfg(feature = "try-runtime")]
 pub use sp_runtime::TryRuntimeError;
+pub use weights::WeightInfo;
 
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod benchmarks;
@@ -449,10 +449,7 @@ pub mod pallet {
 			let initialized = <Initialized<T>>::get();
 
 			// This ensures there was no prior initialization
-			ensure!(
-				!initialized,
-				Error::<T>::RewardVecAlreadyInitialized
-			);
+			ensure!(!initialized, Error::<T>::RewardVecAlreadyInitialized);
 
 			// This ensures the end vesting block (when all funds are fully vested)
 			// is bigger than the init vesting block
@@ -525,10 +522,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			let initialized = <Initialized<T>>::get();
-			ensure!(
-				!initialized,
-				Error::<T>::RewardVecAlreadyInitialized
-			);
+			ensure!(!initialized, Error::<T>::RewardVecAlreadyInitialized);
 
 			// Ensure we are below the max number of contributors
 			ensure!(

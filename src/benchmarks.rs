@@ -28,11 +28,11 @@ fn default_balance<T: Config>() -> BalanceOf<T> {
 
 /// Create a funded user.
 // fn fund_specific_account<T: Config>(pallet_account: T::AccountId, extra: BalanceOf<T>) {
-	// let default_balance = default_balance::<T>();
-	// let total = default_balance + extra;
-	// TODO: fix
-	// T::RewardCurrency::make_free_balance_be(&pallet_account, total);
-	// T::RewardCurrency::issue(total);
+// let default_balance = default_balance::<T>();
+// let total = default_balance + extra;
+// TODO: fix
+// T::RewardCurrency::make_free_balance_be(&pallet_account, total);
+// T::RewardCurrency::issue(total);
 // }
 
 /// Create a funded user.
