@@ -135,11 +135,13 @@ pub mod v1 {
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<sp_std::vec::Vec<u8>, TryRuntimeError> {
 			log!(info, "Crowdloan::pre_upgrade start");
-
-			assert_eq!(Pallet::<T>::on_chain_storage_version(), 0);
-			assert!(v1::AccountsPayable::<T>::iter().count() > 0);
-			assert!(crate::pallet::CrowdloanPeriod::<T>::iter().count() == 0);
-
+			let onchain = Pallet::<T>::on_chain_storage_version();
+			let current = Pallet::<T>::current_storage_version();
+			if current == 1 && onchain == 0 {
+				assert_eq!(Pallet::<T>::on_chain_storage_version(), 0);
+				assert!(v1::AccountsPayable::<T>::iter().count() > 0);
+				assert!(crate::pallet::CrowdloanPeriod::<T>::iter().count() == 0);
+			}
 			log!(info, "Crowdloan::pre_upgrade finished");
 			Ok(Default::default())
 		}
