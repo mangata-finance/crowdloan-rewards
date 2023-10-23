@@ -184,16 +184,13 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
-			crate::migration::v1::MigrateToV1::<T>::pre_upgrade()
 		}
 
 		fn on_runtime_upgrade() -> Weight {
-			crate::migration::v1::MigrateToV1::<T>::on_runtime_upgrade()
 		}
 
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
-			crate::migration::v1::MigrateToV1::<T>::post_upgrade(state)
 		}
 	}
 
