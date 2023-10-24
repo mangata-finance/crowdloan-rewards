@@ -184,13 +184,16 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+            Ok(Default::default())
 		}
 
 		fn on_runtime_upgrade() -> Weight {
+            Default::default()
 		}
 
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
+            Ok(())
 		}
 	}
 
