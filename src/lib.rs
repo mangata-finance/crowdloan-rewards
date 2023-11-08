@@ -61,7 +61,26 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::pallet;
+use frame_support::pallet_prelude::*;
+use frame_support::traits::MultiTokenCurrency;
+use frame_support::traits::MultiTokenVestingLocks;
+use frame_support::traits::OnRuntimeUpgrade;
+use frame_system::pallet_prelude::*;
+use orml_tokens::MultiTokenCurrencyExtended;
+use sp_core::crypto::AccountId32;
+use sp_runtime::traits::{
+	AtLeast32BitUnsigned, BlockNumberProvider, CheckedSub, Saturating, Verify,
+};
+use sp_runtime::{MultiSignature, Perbill};
+use sp_std::collections::btree_map::BTreeMap;
+use sp_std::vec;
+use sp_std::vec::Vec;
+
 pub use pallet::*;
+#[cfg(feature = "try-runtime")]
+pub use sp_runtime::TryRuntimeError;
+pub use weights::WeightInfo;
+
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod benchmarks;
 #[cfg(test)]
@@ -71,7 +90,6 @@ mod tests;
 pub mod weights;
 
 mod migration;
-pub use weights::WeightInfo;
 
 #[macro_export]
 macro_rules! log {
@@ -83,23 +101,16 @@ macro_rules! log {
 	};
 }
 
+pub type BalanceOf<T> =
+	<<T as Config>::Tokens as MultiTokenCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+
+pub type TokenIdOf<T> = <<T as Config>::Tokens as MultiTokenCurrency<
+	<T as frame_system::Config>::AccountId,
+>>::CurrencyId;
+
 #[pallet]
 pub mod pallet {
-
-	use crate::weights::WeightInfo;
-	use frame_support::pallet_prelude::*;
-	use frame_support::traits::tokens::currency::MultiTokenCurrency;
-	use frame_support::traits::OnRuntimeUpgrade;
-	use frame_system::pallet_prelude::*;
-	use mangata_types::{Balance, TokenId};
-	use orml_tokens::MultiTokenCurrencyExtended;
-	use pallet_vesting_mangata::MultiTokenVestingLocks;
-	use sp_core::crypto::AccountId32;
-	use sp_runtime::traits::{AtLeast32BitUnsigned, BlockNumberProvider, Saturating, Verify, Zero};
-	use sp_runtime::{MultiSignature, Perbill};
-	use sp_std::collections::btree_map::BTreeMap;
-	use sp_std::vec;
-	use sp_std::vec::Vec;
+	use super::*;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -127,14 +138,14 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxInitContributors: Get<u32>;
 		/// The minimum contribution to which rewards will be paid.
-		type MinimumReward: Get<Balance>;
+		type MinimumReward: Get<BalanceOf<Self>>;
 		/// A fraction representing the percentage of proofs
 		/// that need to be presented to change a reward address through the relay keys
 		#[pallet::constant]
 		type RewardAddressRelayVoteThreshold: Get<Perbill>;
 		/// MGA token Id
 		#[pallet::constant]
-		type NativeTokenId: Get<TokenId>;
+		type NativeTokenId: Get<TokenIdOf<Self>>;
 		/// The currency in which the rewards will be paid (probably the parachain native currency)
 		type Tokens: MultiTokenCurrency<Self::AccountId>
 			+ MultiTokenCurrencyExtended<Self::AccountId>;
@@ -157,14 +168,18 @@ pub mod pallet {
 		type RewardAddressAssociateOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// The type that will be used to track vesting progress
-		type VestingBlockNumber: AtLeast32BitUnsigned + Parameter + Default + Into<Balance>;
+		type VestingBlockNumber: AtLeast32BitUnsigned + Parameter + Default + Into<BalanceOf<Self>>;
 
 		/// The notion of time that will be used for vesting. Probably
 		/// either the relay chain or sovereignchain block number.
 		type VestingBlockProvider: BlockNumberProvider<BlockNumber = Self::VestingBlockNumber>;
 
 		/// Vesting provider for paying out vested rewards
-		type VestingProvider: MultiTokenVestingLocks<Self::AccountId, Self::BlockNumber>;
+		type VestingProvider: MultiTokenVestingLocks<
+			Self::AccountId,
+			Moment = Self::VestingBlockNumber,
+			Currency = Self::Tokens,
+		>;
 
 		type WeightInfo: WeightInfo;
 	}
@@ -175,8 +190,8 @@ pub mod pallet {
 	#[derive(Default, Clone, Encode, Decode, RuntimeDebug, PartialEq, scale_info::TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct RewardInfo<T: Config> {
-		pub total_reward: Balance,
-		pub claimed_reward: Balance,
+		pub total_reward: BalanceOf<T>,
+		pub claimed_reward: BalanceOf<T>,
 		pub contributed_relay_addresses: Vec<T::RelayChainAccountId>,
 	}
 
@@ -184,7 +199,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		#[cfg(feature = "try-runtime")]
-		fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+		fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
 			crate::migration::v1::MigrateToV1::<T>::pre_upgrade()
 		}
 
@@ -193,7 +208,7 @@ pub mod pallet {
 		}
 
 		#[cfg(feature = "try-runtime")]
-		fn post_upgrade(state: Vec<u8>) -> Result<(), &'static str> {
+		fn post_upgrade(state: Vec<u8>) -> Result<(), TryRuntimeError> {
 			crate::migration::v1::MigrateToV1::<T>::post_upgrade(state)
 		}
 	}
@@ -360,22 +375,22 @@ pub mod pallet {
 
 			// How much should the contributor have already claimed by this block?
 			// By multiplying first we allow the conversion to integer done with the biggest number
-			let amount = info
+			let amount: BalanceOf<T> = info
 				.total_reward
-				.checked_sub(info.claimed_reward)
+				.checked_sub(&info.claimed_reward)
 				.ok_or(Error::<T>::MathOverflow)?;
 			info.claimed_reward += amount;
 
-			T::Tokens::mint(T::NativeTokenId::get().into(), &payee, amount.into())?;
+			T::Tokens::mint(T::NativeTokenId::get(), &payee, amount)?;
 
 			let period = CrowdloanPeriod::<T>::get(crowdloan_id).ok_or(Error::<T>::PeriodNotSet)?;
 
 			T::VestingProvider::lock_tokens(
 				&payee,
-				T::NativeTokenId::get().into(),
-				(amount - T::InitializationPayment::get() * amount).into(),
-				Some((period.0.into() as u32).into()),
-				period.1.into().into(),
+				T::NativeTokenId::get(),
+				amount - T::InitializationPayment::get() * amount,
+				Some(period.0),
+				period.1.into(),
 			)?;
 
 			Self::deposit_event(Event::RewardsPaid(payee.clone(), amount));
@@ -434,10 +449,7 @@ pub mod pallet {
 			let initialized = <Initialized<T>>::get();
 
 			// This ensures there was no prior initialization
-			ensure!(
-				initialized == false,
-				Error::<T>::RewardVecAlreadyInitialized
-			);
+			ensure!(!initialized, Error::<T>::RewardVecAlreadyInitialized);
 
 			// This ensures the end vesting block (when all funds are fully vested)
 			// is bigger than the init vesting block
@@ -477,14 +489,15 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::set_crowdloan_allocation())]
 		pub fn set_crowdloan_allocation(
 			origin: OriginFor<T>,
-			crowdloan_allocation_amount: Balance,
+			crowdloan_allocation_amount: BalanceOf<T>,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 
 			if <Initialized<T>>::get() {
-				<CrowdloanId<T>>::mutate(|val| *val = *val + 1);
+				let zero: BalanceOf<T> = 0_u32.into();
+				<CrowdloanId<T>>::mutate(|val| *val += 1);
 				<Initialized<T>>::put(false);
-				<InitializedRewardAmount<T>>::insert(CrowdloanId::<T>::get(), 0);
+				<InitializedRewardAmount<T>>::insert(CrowdloanId::<T>::get(), zero);
 			}
 
 			ensure!(
@@ -505,14 +518,11 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::initialize_reward_vec(rewards.len() as u32))]
 		pub fn initialize_reward_vec(
 			origin: OriginFor<T>,
-			rewards: Vec<(T::RelayChainAccountId, Option<T::AccountId>, Balance)>,
+			rewards: Vec<(T::RelayChainAccountId, Option<T::AccountId>, BalanceOf<T>)>,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			let initialized = <Initialized<T>>::get();
-			ensure!(
-				initialized == false,
-				Error::<T>::RewardVecAlreadyInitialized
-			);
+			ensure!(!initialized, Error::<T>::RewardVecAlreadyInitialized);
 
 			// Ensure we are below the max number of contributors
 			ensure!(
@@ -527,9 +537,9 @@ pub mod pallet {
 			// Total number of contributors
 			let mut total_contributors = TotalContributors::<T>::get(CrowdloanId::<T>::get());
 
-			let incoming_rewards: Balance = rewards
+			let incoming_rewards: BalanceOf<T> = rewards
 				.iter()
-				.fold(Balance::zero(), |acc: Balance, (_, _, reward)| {
+				.fold(0_u32.into(), |acc: BalanceOf<T>, (_, _, reward)| {
 					acc + *reward
 				});
 
@@ -541,8 +551,8 @@ pub mod pallet {
 			);
 
 			for (relay_account, native_account, reward) in &rewards {
-				if ClaimedRelayChainIds::<T>::get(CrowdloanId::<T>::get(), &relay_account).is_some()
-					|| UnassociatedContributions::<T>::get(CrowdloanId::<T>::get(), &relay_account)
+				if ClaimedRelayChainIds::<T>::get(CrowdloanId::<T>::get(), relay_account).is_some()
+					|| UnassociatedContributions::<T>::get(CrowdloanId::<T>::get(), relay_account)
 						.is_some()
 				{
 					// Dont fail as this is supposed to be called with batch calls and we
@@ -574,7 +584,7 @@ pub mod pallet {
 						let result = info.as_mut().map_or(
 							RewardInfo {
 								total_reward: *reward,
-								claimed_reward: 0,
+								claimed_reward: 0_u32.into(),
 								contributed_relay_addresses: vec![relay_account.clone()],
 							},
 							|i| {
@@ -592,7 +602,7 @@ pub mod pallet {
 						relay_account,
 						RewardInfo {
 							total_reward: *reward,
-							claimed_reward: 0,
+							claimed_reward: 0_u32.into(),
 							contributed_relay_addresses: vec![relay_account.clone()],
 						},
 					);
@@ -714,7 +724,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_crowdloan_allocation)]
 	pub type CrowdloanAllocation<T: Config> =
-		StorageMap<_, Blake2_128Concat, u32, Balance, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u32, BalanceOf<T>, ValueQuery>;
 
 	/// Id of current crowdloan rewards distribution, automatically incremented by
 	/// [`Pallet::<T>::complete_initialization`]
@@ -767,7 +777,7 @@ pub mod pallet {
 	/// Total initialized amount so far. We store this to make pallet funds == contributors reward
 	/// check easier and more efficient
 	pub(crate) type InitializedRewardAmount<T: Config> =
-		StorageMap<_, Blake2_128Concat, u32, Balance, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, u32, BalanceOf<T>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn total_contributors_by_id)]
@@ -779,22 +789,26 @@ pub mod pallet {
 	#[pallet::generate_deposit(fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// The initial payment of InitializationPayment % was paid
-		InitialPaymentMade(T::AccountId, Balance),
+		InitialPaymentMade(T::AccountId, BalanceOf<T>),
 		/// Someone has proven they made a contribution and associated a native identity with it.
 		/// Data is the relay account,  native account and the total amount of _rewards_ that will be paid
-		NativeIdentityAssociated(T::RelayChainAccountId, T::AccountId, Balance),
+		NativeIdentityAssociated(T::RelayChainAccountId, T::AccountId, BalanceOf<T>),
 		/// A contributor has claimed some rewards.
 		/// Data is the account getting paid and the amount of rewards paid.
-		RewardsPaid(T::AccountId, Balance),
+		RewardsPaid(T::AccountId, BalanceOf<T>),
 		/// A contributor has updated the reward address.
 		RewardAddressUpdated(T::AccountId, T::AccountId),
 		/// When initializing the reward vec an already initialized account was found
-		InitializedAlreadyInitializedAccount(T::RelayChainAccountId, Option<T::AccountId>, Balance),
+		InitializedAlreadyInitializedAccount(
+			T::RelayChainAccountId,
+			Option<T::AccountId>,
+			BalanceOf<T>,
+		),
 		/// When initializing the reward vec an already initialized account was found
 		InitializedAccountWithNotEnoughContribution(
 			T::RelayChainAccountId,
 			Option<T::AccountId>,
-			Balance,
+			BalanceOf<T>,
 		),
 	}
 }
