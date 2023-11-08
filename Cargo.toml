@@ -12,22 +12,22 @@ serde = { version = "1.0.101", optional = true, features = ["derive"], default-f
 log = { version = "0.4", default-features = false }
 scale-info = { version = "2.0.0", default-features = false, features = ["derive"] }
 
-frame-benchmarking = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "develop", default-features = false, optional = true }
-frame-support = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "develop", default-features = false }
-frame-system = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "develop", default-features = false }
-mangata-types = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "develop", default-features = false }
-pallet-utility = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "develop", default-features = false }
-pallet-vesting-mangata = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "develop", default-features = false }
-sp-core = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "develop", default-features = false }
-sp-io = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "develop", default-features = false }
-sp-runtime = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "develop", default-features = false }
-sp-std = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "develop", default-features = false }
-sp-trie = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "develop", default-features = false, optional = true }
+frame-benchmarking = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "release-mangata-v1.1.0", default-features = false, optional = true }
+frame-support = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "release-mangata-v1.1.0", default-features = false }
+frame-system = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "release-mangata-v1.1.0", default-features = false }
+mangata-types = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "release-mangata-v1.1.0", default-features = false }
+pallet-utility = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "release-mangata-v1.1.0", default-features = false }
+pallet-vesting-mangata = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "release-mangata-v1.1.0", default-features = false }
+sp-core = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "release-mangata-v1.1.0", default-features = false }
+sp-io = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "release-mangata-v1.1.0", default-features = false }
+sp-runtime = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "release-mangata-v1.1.0", default-features = false }
+sp-std = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "release-mangata-v1.1.0", default-features = false }
+sp-trie = { git = "https://github.com/mangata-finance/polkadot-sdk", branch = "release-mangata-v1.1.0", default-features = false, optional = true }
 
-orml-tokens = { git = "https://github.com/mangata-finance/open-runtime-module-library", branch = "develop", default-features = false }
+orml-tokens = { git = "https://github.com/mangata-finance/open-runtime-module-library", branch = "release-mangata-v1.1.0", default-features = false }
 
 [dev-dependencies]
-orml-traits = { git = "https://github.com/mangata-finance/open-runtime-module-library", branch = "develop", default-features = false }
+orml-traits = { git = "https://github.com/mangata-finance/open-runtime-module-library", branch = "release-mangata-v1.1.0", default-features = false }
 
 [features]
 default = ["std"]
