@@ -89,8 +89,6 @@ pub(crate) mod mock;
 mod tests;
 pub mod weights;
 
-mod migration;
-
 #[macro_export]
 macro_rules! log {
 	($level:tt, $patter:expr $(, $values:expr)* $(,)?) => {
@@ -193,24 +191,6 @@ pub mod pallet {
 		pub total_reward: BalanceOf<T>,
 		pub claimed_reward: BalanceOf<T>,
 		pub contributed_relay_addresses: Vec<T::RelayChainAccountId>,
-	}
-
-	// This hook is in charge of initializing the vesting height at the first block of the parachain
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		#[cfg(feature = "try-runtime")]
-		fn pre_upgrade() -> Result<Vec<u8>, TryRuntimeError> {
-			crate::migration::v1::MigrateToV1::<T>::pre_upgrade()
-		}
-
-		fn on_runtime_upgrade() -> Weight {
-			crate::migration::v1::MigrateToV1::<T>::on_runtime_upgrade()
-		}
-
-		#[cfg(feature = "try-runtime")]
-		fn post_upgrade(state: Vec<u8>) -> Result<(), TryRuntimeError> {
-			crate::migration::v1::MigrateToV1::<T>::post_upgrade(state)
-		}
 	}
 
 	#[pallet::call]
