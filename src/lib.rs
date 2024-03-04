@@ -67,11 +67,10 @@ use frame_support::traits::MultiTokenVestingLocks;
 use frame_support::traits::OnRuntimeUpgrade;
 use frame_system::pallet_prelude::*;
 use orml_tokens::MultiTokenCurrencyExtended;
-use sp_core::crypto::AccountId32;
 use sp_runtime::traits::{
 	AtLeast32BitUnsigned, BlockNumberProvider, CheckedSub, Saturating, Verify,
 };
-use sp_runtime::{MultiSignature, Perbill};
+use sp_runtime::{MultiSignatureAcc20, Perbill, AccountId20};
 use sp_std::collections::btree_map::BTreeMap;
 use sp_std::vec;
 use sp_std::vec::Vec;
@@ -149,9 +148,10 @@ pub mod pallet {
 			+ MultiTokenCurrencyExtended<Self::AccountId>;
 		/// The AccountId type contributors used on the relay chain.
 		type RelayChainAccountId: Parameter
-			//TODO these AccountId32 bounds feel a little extraneous. I wonder if we can remove them.
-			+ Into<AccountId32>
-			+ From<AccountId32>
+			//TODO these AccountId20 bounds feel a little extraneous. I wonder if we can remove them.
+			// Since our "relaychain" is now ethereum 
+			+ Into<AccountId20>
+			+ From<AccountId20>
 			+ Ord;
 
 		// The origin that is allowed to change the reward address with relay signatures
@@ -206,7 +206,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			reward_account: T::AccountId,
 			relay_account: T::RelayChainAccountId,
-			proof: MultiSignature,
+			proof: MultiSignatureAcc20,
 		) -> DispatchResultWithPostInfo {
 			// Check that the origin is the one able to asociate the reward addrss
 			T::RewardAddressChangeOrigin::ensure_origin(origin)?;
@@ -281,7 +281,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			reward_account: T::AccountId,
 			previous_account: T::AccountId,
-			proofs: Vec<(T::RelayChainAccountId, MultiSignature)>,
+			proofs: Vec<(T::RelayChainAccountId, MultiSignatureAcc20)>,
 		) -> DispatchResultWithPostInfo {
 			// Check that the origin is the one able to change the reward addrss
 			T::RewardAddressChangeOrigin::ensure_origin(origin)?;
@@ -608,7 +608,7 @@ pub mod pallet {
 		/// In any of the cases the weight will need to account for all the signatures,
 		/// as we dont know beforehand whether they will be valid
 		fn verify_signatures(
-			proofs: Vec<(T::RelayChainAccountId, MultiSignature)>,
+			proofs: Vec<(T::RelayChainAccountId, MultiSignatureAcc20)>,
 			reward_info: RewardInfo<T>,
 			payload: Vec<u8>,
 		) -> DispatchResult {
